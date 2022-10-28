@@ -124,9 +124,9 @@ def read_file(split=-1):
     
     THIS WAS VALID FOR THE EXCEL IMPORT, NOT THE DATABASE IMPORT!!!!!!!
     '''
-    # df1 = fetch_postgresql_database()
-    df1 = database_from_excel()
-    df1 = rename_columns(df1)
+    df1 = fetch_postgresql_database()
+    # df1 = database_from_excel()
+    # df1 = rename_columns(df1)
 
     # x_df1 = ['Datum', 'Periodenummer', 'Aantal uren', 'Urensoort', 'Plaatsing', 'Functie', 'Inlener', 'Flexkracht']
     #     # df1 = df1.filter(items=x_df1, axis=1)
@@ -146,7 +146,7 @@ def read_file(split=-1):
     # df1 = fill_blanks(df1)
     #num_period(df1)
 
-    df1 = set_date_to_idx(df1)
+    # df1 = set_date_to_idx(df1)
 
     # df1 = create_date_features(df1)
 
@@ -155,13 +155,13 @@ def read_file(split=-1):
     # exit(0)
     # Export the data to a local excel file for ease of access and clearer reading of the information
     # df1.to_excel("../../data/edited data/db_export.xlsx")
+    df1.to_excel("../../data/edited data/big_db_export.xlsx")
 
     if split == 1:
         df_list = []
         df_list = separate_by_worker(df1)
         return df_list
 
+    print(df1.head())
+    exit(1)
     return df1
-
-
-

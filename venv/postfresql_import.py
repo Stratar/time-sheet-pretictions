@@ -4,6 +4,7 @@ from pandas.io.sql import read_sql_query
 This file is designed to fetch the relevant database 
 '''
 cmd_access_database = "psql -h pgpool-aky-20 -U development euur_eam \ndevelopment"
+cmd_access_big_database = "psql -h pgpool-aky-20 -U development euur_timecards \ndevelopment"
 cmd_pwd_access_database = "development"
 host = "web-aky-21.enschede.akyla"
 username = "e.mitaros"
@@ -26,8 +27,11 @@ cmd_create_merged_dataset = "select assignment.functionname, assignment.startdat
                             "join period on (timecard.periodid = period.periodid) join staffingcustomer on (assignment.staffingcustomerid = staffingcustomer.staffingcustomerid) where timecardline.periodtotalline != '1'::bit;"
 
 
+cmd_create_merged_big_dataset = "select * from timecarddata;"
+
+
 def fetch_postgresql_database():
-    conn = psycopg2.connect(dbname='euur_eam', user='development', password='development', host="pgpool-aky-20.enschede.akyla")
-    db = read_sql_query(cmd_create_merged_dataset, conn)
+    conn = psycopg2.connect(dbname='euur_timecards', user='development', password='development', host="pgpool-aky-20.enschede.akyla")
+    db = read_sql_query(cmd_create_merged_big_dataset, conn)
     conn.close()
     return db
