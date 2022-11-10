@@ -1,65 +1,29 @@
 from file_reader import read_file
 from stattests import general_statistics
 import pandas as pd
-from encoder import encode_data_keras2
-from neuralnet import NeuralNet
-from rnn import run_rnn, plot_predictions, store_results
+from rnn import plot_predictions, store_results, plot_history
 from preprocessing import *
-from boosted_tree import start_boosted_tree
+from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork, ConvLSTMNeuralNetwork
 import sys
-
-
-def predict(df):
-    # Get the independent variables ready
-    #X = pd.get_dummies(data=df.loc[:,df.columns !='totalhours'])
-    #X = pd.get_dummies(data=df.drop(['amount', 'totalhours', 'totalexpense'], axis=1))
-    X = df[['period', 'companyname']]
-    X = X.astype(str)
-    #X = tf.convert_to_tensor(X)
-    Y  = df[['totalhours']]
-    #Y = tf.convert_to_tensor(df['amount'])
-
-    encode_data_keras2(X, Y)
-    #use_nn(X,Y)
-
-
-def use_nn(x, y):
-
-    input_shape = x[1,:].shape
-    output_size = 1
-    nn = NeuralNet(input_shape, output_size, 10, 350, 0.05)
-    nn.compile()
-    nn.fit(x, y)
-    result = nn.evaluate(x, y)
-    print(result)
-
-
-def get_X_y(df, in_win_size=5, out_win_size=6):
-    '''Create x and y variables based on the time-series data.'''
-    df_np = df.to_numpy()
-    x = []
-    y = []
-    scaler = MinMaxScaler()
-    df_np = scaler.fit_transform(df_np.reshape(-1,1)).reshape(1,-1)[0]
-    for i in range(len(df_np)-(in_win_size + out_win_size - 1)):
-        row = [[a] for a in df_np[i:i+in_win_size]]
-        x.append(row)
-        if out_win_size == 1:
-            label =df_np[i+in_win_size]
-        else:
-            label = [[b] for b in df_np[i + in_win_size:i + in_win_size + out_win_size]]
-        y.append(label)
-    return np.array(x), np.array(y)
+from datetime import datetime
 
 
 if __name__ == '__main__':
-
-    # A way of making the program swap between univariate and multivariate approaches. 0: univariate, 1: multivariate
-    mode = 1
-    split = 0
-    n_var_name = ""
+    mode = 0
+    split = 1
+    connection = True
     if len(sys.argv) > 1:
-        mode = sys.argv[1]
+        mode = int(sys.argv[1])
+    # A way of making the program swap between univariate and multivariate approaches. 0: univariate, 1: multivariate
+
+    in_win_size = 7
+    out_win_size = 1
+    # FEATURES = ['dayofyear', 'hour', 'dayofweek', 'quarter', 'month', 'year', 'assignment_flexworkerid', 'timecardline_amount']
+    if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecardline_amount']
+    if mode == 0: FEATURES = ['timecardline_amount']
+
+    # M_FEATURES = ['dayofyear', 'dayofweek', 'year', 'staffingcustomer_companyname',
+    #             'assignment_flexworkerid', 'timecardline_amount']
 
     '''
     The file is read from either a locally stored excel file, or through a query to the remote database. According
@@ -68,121 +32,109 @@ if __name__ == '__main__':
     will be split into a number of sub dataframes contained in a list. Therefore if the argument is 1, the return will
     be a list.
     '''
-    df = read_file(split=split)
+    df = read_file(connection=connection)
+    if mode==2:
+        FEATURES = ['assignment_startdate', 'assignment_enddate', 'quarter', 'weekofyear', 'assignmentcomponent_startdate',
+                    'assignmentcomponent_enddate', 'assignment_flexworkerid', 'staffingcustomer_companyname',
+                    'timecardline_amount']
+        print("Using statistic analysis mode")
+        print(f"Number of workers considered: {len(df[FEATURES[-3]].unique())}")
+        print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
+        # general_statistics(df)
+        df_list = create_subsets(df, FEATURES, split=split)
+        i = 0 # Change this to start the loop sooner or later
+        for cnt, df in enumerate(df_list):
+            if cnt < i: continue
+            print(f"\n**********************************************\n"
+                  f"            Input number {cnt+1}:"
+                  f"\n**********************************************")
+            print(f"Worker: {df[FEATURES[0]][0]}")
+            print(f"Company: {df[FEATURES[1]][0]}")
+            general_statistics(df)
+        exit()
+    df_list = create_subsets(df, FEATURES, split=split)
+    # df_list = fill_gaps(df_list)
+    df_list = fill_gaps([df_list[2]], dt_inputs=True)
+    df_list = uniform_data_types(df_list)
+    df_list, scaler = convert_and_scale(df_list)
+    df_list, test_data = get_test_set_np(df_list, in_win_size=in_win_size)
+    df_list, val_data = get_test_set_np(df_list, in_win_size=in_win_size)
 
-    # After the first round of assembling the necessary data for the model to work, they need to be further refined by
-    # performing a series of statistical tests that will narrow the list down even further.
-    # df = general_statistics(df)
-
-    # After the statistics have been collected in the traditional way, on the original data format (not the raw one from
-    # importing from the database), it can then be embedded into a different format in order to make it more accessible
-    # for a neural network to work with. This process requires the embeddings to be generated through an entirely
-    # separate embedding training network.
-
-    # Use lists of the features, and target variables from the data collection.
-
-    in_win_size = 7
-    out_win_size = 1
-
-    FEATURES = ['dayofyear', 'hour', 'dayofweek', 'quarter', 'month', 'year', 'amount']
-    TARGET = FEATURES[-1]
+    if mode == 0:
+        x_test, y_test = partition_dataset(test_data, in_win_size, out_win_size)
+        x_val, y_val = partition_dataset(val_data, in_win_size, out_win_size)
+    elif mode == 1:
+        x_test, y_test = multi_partition_dataset(test_data, in_win_size, out_win_size)
+        x_val, y_val = multi_partition_dataset(val_data, in_win_size, out_win_size)
 
     '''
-    Boosted tree method requires slightly different approach, so it is separated from the rest.
-    IT DOES NOT WORK YET!!
+    After the first round of assembling the necessary data for the model to work, they need to be further refined by
+    performing a series of statistical tests that will narrow the list down even further.
+    df = general_statistics(df)
+
+    After the statistics have been collected in the traditional way, on the original data format (not the raw one from
+    importing from the database), it can then be embedded into a different format in order to make it more accessible
+    for a neural network to work with. This process requires the embeddings to be generated through an entirely
+    separate embedding training network.
+
+    Use lists of the features, and target variables from the data collection.
     '''
-    # start_boosted_tree(df[FEATURES], in_win_size, TARGET)
-    '''End of boosted tree section'''
+    '''
+    The data should be formatted as a list of dataframes that will be preprocessed one-by-one 
+    '''
+    x = lambda n: n.shape[1:] if (len(n.shape) > 1) else [1]
+    input_shape = x_test.shape[1:]
+    output_shape = x(y_test)
 
-    '''Start new data preprocessing'''
-    if mode == 0:
-        # For univariate predictions
-        if split == 1:
-            df_np = []
-            for worker_data in df:
-                d_np = df_to_np(worker_data[TARGET])  # [:7939]
-                d_np, scaler = val_scaler(d_np)
-                df_np.append(d_np)
-        else:
-            df_np = df_to_np(df[TARGET]) #[:7939]
-            df_np, scaler = val_scaler(df_np)
-    elif mode == 1:
-        # For multivariate predictions
-        if split == 1:
-            df_np = []
-            for worker_data in df:
-                d_np = df_to_np(worker_data[TARGET])  # [:7939]
-                d_np, scaler = multi_scaler(d_np)
-                df_np.append(d_np)
-        else:
-            df_np = df_to_np(df[FEATURES]) #[:7939]
-            df_np, scaler = multi_scaler(df_np)
-        n_var_name = "_multi"
+    model = AdvGRUNeuralNetwork(input_shape, output_shape)
+    model.compile()
+    model.check()
 
-    #df_np, scaler = scaler(df_np)
+    start = datetime.now()
+    i = 0
+    for df_np in df_list:
 
-    # Split the training data into train and train data sets
-    # As a first step, we get the number of rows to train the model on 80% of the data
-    # for worker_data in df_list:
-    if split == 1:
-        train_data, val_data, test_data = [], [], []
-        for worker_data in df_np:
-            tr_data, v_data, te_data = data_split(worker_data, in_win_size)
-            train_data.append(tr_data)
-            val_data.append(v_data)
-            test_data.append(te_data)
-    else:
-        train_data, val_data, test_data = data_split(df_np, in_win_size)
+        print(f"\n********************************************************************************************\n"
+            f"                                        Iteration {i}:"
+            f"\n********************************************************************************************")
+        i += 1
 
-    # Split the train, val and test data to x and y sets
-    if mode == 0:
-        if split == 1:
-            x_train, y_train, x_val, y_val, x_test, y_test = [], [], [], [], [], []
-            for w_train_data, w_val_data, w_test_data in zip(train_data, val_data, test_data):
-                w_x_train, w_y_train = partition_dataset(w_train_data, in_win_size, out_win_size)
-                w_x_val, w_y_val = partition_dataset(w_val_data, in_win_size, out_win_size)
-                w_x_test, w_y_test = partition_dataset(w_test_data, in_win_size, out_win_size)
-                x_train.append(w_x_train)
-                y_train.append(w_y_train)
-                x_val.append(w_x_val)
-                y_val.append(w_y_val)
-                x_test.append(w_x_test)
-                y_test.append(w_y_test)
-        else:
-            x_train, y_train = partition_dataset(train_data, in_win_size, out_win_size)
-            x_val, y_val = partition_dataset(val_data, in_win_size, out_win_size)
-            x_test, y_test = partition_dataset(test_data, in_win_size, out_win_size)
-    elif mode == 1:
-        if split == 1:
-            x_train, y_train, x_val, y_val, x_test, y_test = [], [], [], [], [], []
-            for w_train_data, w_val_data, w_test_data in zip(train_data, val_data, test_data):
-                w_x_train, w_y_train = multi_partition_dataset(w_train_data, in_win_size, out_win_size)
-                w_x_val, w_y_val = multi_partition_dataset(w_val_data, in_win_size, out_win_size)
-                w_x_test, w_y_test = multi_partition_dataset(w_test_data, in_win_size, out_win_size)
-                x_train.append(w_x_train)
-                y_train.append(w_y_train)
-                x_val.append(w_x_val)
-                y_val.append(w_y_val)
-                x_test.append(w_x_test)
-                y_test.append(w_y_test)
-        # For the multivariate input predictions
-        else:
-            x_train, y_train = multi_partition_dataset(train_data, in_win_size, out_win_size)
-            x_val, y_val = multi_partition_dataset(val_data, in_win_size, out_win_size)
-            x_test, y_test = multi_partition_dataset(test_data, in_win_size, out_win_size)
+        if mode == 0:
+            x_train, y_train = partition_dataset(df_np, in_win_size, out_win_size)
 
-    # Train the model on the train data and evaluate it with the val data
-    model, hp = run_rnn(x_train, y_train, x_val, y_val, split=split)
+        elif mode == 1:
+            x_train, y_train = multi_partition_dataset(df_np, in_win_size, out_win_size)
 
+        # print(y_train.shape)
+
+        try:
+            history = model.fit(x_train, y_train, x_val, y_val, 20)
+        except Exception as e:
+            print(f"Exception thrown: {e}")
+
+    end = datetime.now()
+    train_time = (end-start).total_seconds()
+    plot_history(history)
+
+    hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
+    '''
+    Uncomment the first four lines in order to run predictions on the test and validation sets as well.
+    '''
     res_train, mse_train, kl_train, acc_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
     print(mse_train, kl_train, acc_train, rmse_train, mae_train)
     res_val, mse_val, kl_val, acc_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
     print(mse_val, kl_val, acc_val, rmse_val, mae_val)
     res_test, mse_test, kl_test, acc_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
     print(mse_test, kl_test, acc_test, rmse_test, mae_test)
+
     df_res = pd.concat([res_train, res_val, res_test], axis=1)
     result_values = [mse_train, kl_train, acc_train, rmse_train, mae_train, mse_val, kl_val, acc_val, rmse_val, mae_val,
                      mse_test, kl_test, acc_test, rmse_test, mae_test]
 
-    store_results(hp, result_values, df_res, [TARGET, str(model._name), n_var_name])
-    '''End new data preprocessing'''
+    mode_name = ''
+    if mode == 1: mode_name = 'multivariate_'
+    else: mode_name = 'univariate_'
+    model_name = model.name + "_"
+    target_name = FEATURES[-1]
+
+    store_results(hp, result_values, df_res, mode_name+model_name+target_name)

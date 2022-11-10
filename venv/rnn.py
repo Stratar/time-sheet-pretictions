@@ -9,7 +9,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler # This is also a normalizer
 import numpy as np
-import time
 from datetime import datetime
 
 
@@ -127,7 +126,7 @@ def plot_predictions(model, X, y, scaler, start=0, end=150):
     plt.xlabel('epoch')
     plt.legend(['Predictions', 'Actuals'], loc='upper left')
     plt.grid()
-    # plt.show()
+    plt.show()
     kl = KLDivergence()
     kl.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
     acc = Accuracy()
@@ -156,22 +155,6 @@ def plot_history(history):
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
-    # #
-    # plt.plot(history.history['accuracy'])
-    # plt.plot(history.history['val_accuracy'])
-    # plt.title('model accuracy')
-    # plt.ylabel('loss')
-    # plt.xlabel('epoch')
-    # plt.legend(['train', 'test'], loc='upper left')
-    # plt.show()
-    # # summarize history for KL-Divergence
-    # plt.plot(history.history['kullback_leibler_divergence'])
-    # plt.plot(history.history['val_kullback_leibler_divergence'])
-    # plt.title('model KL-Divergence')
-    # plt.ylabel('KL-Divergence')
-    # plt.xlabel('epoch')
-    # plt.legend(['train', 'test'], loc='upper left')
-    # plt.show()
 
 
 def store_results(hyperparams, history, results, name):
@@ -185,46 +168,6 @@ def store_results(hyperparams, history, results, name):
         df[col] = [i]
 
     df = pd.concat([df, results], axis=1)
-    df.to_excel(f"../../data/results/RNN/{name[0]}{name[2]}_{name[1]}_trial 39.xlsx")
-    # df.to_excel("../../data/results/RNN/demo 4.xlsx")
+    # df.to_excel(f"../../data/results/RNN/{name[0]}{name[2]}_{name[1]}_trial 39.xlsx")
+    df.to_excel(f"../../data/results/RNN/{name} 9.xlsx")
 
-
-def run_rnn(x_train, y_train, x_val, y_val, split=-1, fit_range=1):
-    n_layer_lim = 2
-    layer_size = 30
-    hid_size = 20
-    lr = 5e-4
-    epochs = 100
-
-    x = lambda n : n.shape[1:] if(len(n.shape)>1) else [1]
-    if split == 1:
-        input_shape = x_train[0].shape[1:]
-        output_shape = x(y_train[0])
-    else:
-        input_shape = x_train.shape[1:]
-        output_shape = x(y_train)
-
-    model1, cp1 = conv_model(input_shape, output_shape, n_layer_lim, layer_size, hid_size)
-    model1.compile(loss=MeanSquaredError(), optimizer=Adam(learning_rate=lr), metrics=[RootMeanSquaredError(), KLDivergence(), Accuracy()])
-
-    early_stop = EarlyStopping(monitor='val_loss', patience=25)
-    '''
-    If I want to train the model on data by multiple flexworkers, differently than the way it is currently organised, 
-    with one worker per database for example, then the same model can be trained, with the only thing needed being the
-    model being fitted for every separate dataset. 
-    '''
-    start = datetime.now()
-    if split == 1:
-        for input, output, xval, yval in zip(x_train, y_train, x_val, y_val):
-            history = model1.fit(x_train, y_train, shuffle=False, validation_data=[xval, yval], epochs=int(epochs/len(x_train)), callbacks=[cp1, early_stop])
-    else:
-        history = model1.fit(x_train, y_train, shuffle=False, validation_data=[x_val, y_val], epochs=epochs, callbacks=[cp1, early_stop])
-    end = datetime.now()
-    train_time = (end-start).total_seconds()
-    print(f"The training time for the model was: {train_time}\n")
-    plot_history(history)
-
-    model1 = load_model('model_conv/')
-
-    hyperparameters = [train_time, n_layer_lim, input_shape, output_shape, layer_size, hid_size, lr, epochs]
-    return model1, hyperparameters
