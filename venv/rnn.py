@@ -110,7 +110,7 @@ def res_dataframe(res, y):
     return df
 
 
-def plot_predictions(model, X, y, scaler, start=0, end=150):
+def plot_predictions(model, X, y, scaler, start=0, end=150, show_plots=False):
 
     predictions = scaler.inverse_transform(model.predict(X).reshape(-1,1)).reshape(1,-1)[0]
     # predictions = scaler.inverse_transform(predict(model, X).reshape(-1,1)).reshape(1,-1)[0]
@@ -119,14 +119,15 @@ def plot_predictions(model, X, y, scaler, start=0, end=150):
     y = scaler.inverse_transform(np.array(y).reshape(-1,1)).flatten()
     # y = np.array(y).reshape(1,-1)[0]
     df = res_dataframe(predictions, y)
-    plt.plot(df['Predictions'][start:end])
-    plt.plot(df['Actuals'][start:end])
-    plt.title('Predictions vs Actuals')
-    plt.ylabel('value')
-    plt.xlabel('epoch')
-    plt.legend(['Predictions', 'Actuals'], loc='upper left')
-    plt.grid()
-    plt.show()
+    if show_plots:
+        plt.plot(df['Predictions'][start:end])
+        plt.plot(df['Actuals'][start:end])
+        plt.title('Predictions vs Actuals')
+        plt.ylabel('value')
+        plt.xlabel('epoch')
+        plt.legend(['Predictions', 'Actuals'], loc='upper left')
+        plt.grid()
+        plt.show()
     kl = KLDivergence()
     kl.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
     acc = Accuracy()
@@ -169,5 +170,5 @@ def store_results(hyperparams, history, results, name):
 
     df = pd.concat([df, results], axis=1)
     # df.to_excel(f"../../data/results/RNN/{name[0]}{name[2]}_{name[1]}_trial 39.xlsx")
-    df.to_excel(f"../../data/results/RNN/{name} 9.xlsx")
+    df.to_excel(f"../../data/results/RNN/{name} 10.xlsx")
 

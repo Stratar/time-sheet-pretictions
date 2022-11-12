@@ -8,10 +8,26 @@ import sys
 from datetime import datetime
 
 
+def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler):
+
+    res_train, mse_train, kl_train, acc_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
+    print(mse_train, kl_train, acc_train, rmse_train, mae_train)
+    res_val, mse_val, kl_val, acc_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
+    print(mse_val, kl_val, acc_val, rmse_val, mae_val)
+    res_test, mse_test, kl_test, acc_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
+    print(mse_test, kl_test, acc_test, rmse_test, mae_test)
+
+    df_res = pd.concat([res_train, res_val, res_test], axis=1)
+    result_values = [mse_train, kl_train, acc_train, rmse_train, mae_train, mse_val, kl_val, acc_val, rmse_val, mae_val,
+                     mse_test, kl_test, acc_test, rmse_test, mae_test]
+    return df_res, result_values
+
+
 if __name__ == '__main__':
     mode = 0
     split = 1
-    connection = True
+    individual = True # Checks whether each worker is going to be trained separately, or all togeter
+    connection = False
     if len(sys.argv) > 1:
         mode = int(sys.argv[1])
     # A way of making the program swap between univariate and multivariate approaches. 0: univariate, 1: multivariate
@@ -32,7 +48,7 @@ if __name__ == '__main__':
     will be split into a number of sub dataframes contained in a list. Therefore if the argument is 1, the return will
     be a list.
     '''
-    df = read_file(connection=connection)
+    df = read_file(connection=connection, store_locally=False)
     if mode==2:
         FEATURES = ['assignment_startdate', 'assignment_enddate', 'quarter', 'weekofyear', 'assignmentcomponent_startdate',
                     'assignmentcomponent_enddate', 'assignment_flexworkerid', 'staffingcustomer_companyname',
@@ -42,7 +58,7 @@ if __name__ == '__main__':
         print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
         # general_statistics(df)
         df_list = create_subsets(df, FEATURES, split=split)
-        i = 0 # Change this to start the loop sooner or later
+        i = 27 # Change this to start the loop sooner or later
         for cnt, df in enumerate(df_list):
             if cnt < i: continue
             print(f"\n**********************************************\n"
@@ -54,7 +70,7 @@ if __name__ == '__main__':
         exit()
     df_list = create_subsets(df, FEATURES, split=split)
     # df_list = fill_gaps(df_list)
-    df_list = fill_gaps([df_list[2]], dt_inputs=True)
+    df_list = fill_gaps(df_list, dt_inputs=True)
     df_list = uniform_data_types(df_list)
     df_list, scaler = convert_and_scale(df_list)
     df_list, test_data = get_test_set_np(df_list, in_win_size=in_win_size)
@@ -91,8 +107,10 @@ if __name__ == '__main__':
     model.check()
 
     start = datetime.now()
-    i = 0
-    for df_np in df_list:
+    i = 26
+    dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
+    for cnt, df_np in enumerate(df_list):
+        if cnt < i:continue
 
         print(f"\n********************************************************************************************\n"
             f"                                        Iteration {i}:"
@@ -108,28 +126,39 @@ if __name__ == '__main__':
         # print(y_train.shape)
 
         try:
-            history = model.fit(x_train, y_train, x_val, y_val, 20)
+            history = model.fit(x_train, y_train, x_val, y_val, 80)
         except Exception as e:
             print(f"Exception thrown: {e}")
+            continue
+
+        if individual:
+            df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler)
+            dict_individual_losses["train loss"].append(result_values[0])
+            dict_individual_losses["value loss"].append(result_values[5])
+            dict_individual_losses["test loss"].append(result_values[10])
+            print(f"train loss: {dict_individual_losses['train loss'][-1]}")
+            print(f"value loss: {dict_individual_losses['value loss'][-1]}")
+            print(f"test loss: {dict_individual_losses['test loss'][-1]}")
+
+    if individual:
+
+        df_iterative = pd.DataFrame.from_dict(dict_individual_losses)
+        df_iterative["train mean"] = df_iterative["train loss"].mean()
+        df_iterative["value mean"] = df_iterative["value loss"].mean()
+        df_iterative["test mean"] = df_iterative["test loss"].mean()
+        df_iterative.to_excel(f"../../data/results/RNN/losses.xlsx")
+
 
     end = datetime.now()
     train_time = (end-start).total_seconds()
-    plot_history(history)
+    # plot_history(history)
 
     hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
     '''
     Uncomment the first four lines in order to run predictions on the test and validation sets as well.
     '''
-    res_train, mse_train, kl_train, acc_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
-    print(mse_train, kl_train, acc_train, rmse_train, mae_train)
-    res_val, mse_val, kl_val, acc_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
-    print(mse_val, kl_val, acc_val, rmse_val, mae_val)
-    res_test, mse_test, kl_test, acc_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
-    print(mse_test, kl_test, acc_test, rmse_test, mae_test)
-
-    df_res = pd.concat([res_train, res_val, res_test], axis=1)
-    result_values = [mse_train, kl_train, acc_train, rmse_train, mae_train, mse_val, kl_val, acc_val, rmse_val, mae_val,
-                     mse_test, kl_test, acc_test, rmse_test, mae_test]
+    if not individual:
+        df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler)
 
     mode_name = ''
     if mode == 1: mode_name = 'multivariate_'
