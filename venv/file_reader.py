@@ -1,7 +1,5 @@
 import pandas as pd
 from postfresql_import import fetch_postgresql_database
-import numpy as np
-import matplotlib.pyplot as plt
 
 '''
 For the initial testing, EXCEL files downloaded from the demo site are used, which are not reliable.

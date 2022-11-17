@@ -1,8 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 import math
-import statistics as stat
 import pandas as pd
 
 
@@ -14,7 +12,7 @@ The prefix multi refers to the function's ability to handle multiple variables a
 '''
 
 
-def multi_scaler(df_np):
+def multi_scaler_legacy(df_np):
     '''
     The inputs to the network is best processed with small variances, therefore scaling the inputs makes sense.
     However, the way to scale them right now relies on the last item being the variable to be predicted.
@@ -33,6 +31,23 @@ def multi_scaler(df_np):
         scaler = MinMaxScaler()
         df_np = scaler.fit_transform(df_np.reshape(-1, 1)).reshape(1, -1)[0]
     return df_np, scaler
+
+
+def multi_scaler(df_list, scalers):
+    '''
+    The inputs to the network is best processed with small variances, therefore scaling the inputs makes sense.
+    However, the way to scale them right now relies on the last item being the variable to be predicted.
+    '''
+    for df_np in df_list:
+        if len(df_np.shape) > 1:
+            df_np = np.transpose(df_np)
+            for i, scaler in enumerate(scalers):
+                df_np[i] = scaler.fit_transform(df_np[i].reshape(-1,1)).reshape(1,-1)[0]
+            df_np = np.transpose(df_np)
+        else:
+            scaler = MinMaxScaler()
+            df_np = scaler.fit_transform(df_np.reshape(-1, 1)).reshape(1, -1)[0]
+    return df_list
 
 
 def df_to_np(df):
@@ -91,26 +106,44 @@ def get_test_set_np(df_list, size=0.8, in_win_size=7):
         test_data = df_list[0][data_length - in_win_size:]
         df_list[0] = df_list[0][:data_length]
     elif len(df_list) > 1:
-        data_length = math.ceil(len(df_list) * size)
         test_data = df_list[-1]
         df_list = df_list[:-1]
 
     return df_list, test_data
 
 
-def convert_and_scale(df_list):
+def convert_and_scale_legacy(df_list):
 
     for i in range(len(df_list)):
         df_list[i] = df_to_np(df_list[i])
-        df_list[i], scaler = multi_scaler(df_list[i])
+        df_list[i], scaler = multi_scaler_legacy(df_list[i])
 
     return df_list, scaler
 
 
-def create_subsets(df, features, split=-1):
+def convert_and_scale(df_list):
+    categories = df_list[0].columns # Get the number of columns that would need to be scaled
+    category_dict = {c:[] for c in categories}
+    for i in range(len(df_list)):
+        for category in categories:
+            category_dict[category].append((df_to_np(df_list[i][category])))
+        df_list[i] = df_to_np(df_list[i])
+    scalers = []
+    for category in categories:
+        scaler = MinMaxScaler()
+        # This is equivalent to doing the reshape(-1, 1) in np.ndarray, but that can handle up to 32 dims, so it crashes
+        flat = [[item] for sublist in category_dict[category] for item in sublist]
+        scalers.append(scaler.fit(flat))
+
+    df_list = multi_scaler(df_list, scalers)
+
+    return df_list, scalers
+
+
+def create_subsets(df, features, split=-1, company_split=True):
     df_list = []
     if split == 1:
-        df_list = get_flex_groups(df, features)
+        df_list = get_flex_groups(df, features, company_split=company_split)
     else:
         df_list.append(df)
 
@@ -145,42 +178,11 @@ def remove_double_indices(df):
     This function is currently hardcoded, assuming that the database received has these fixed names
     There must be a better way of doing this, to apply to all scenarios
     '''
-    return df.groupby(df.index).agg({'assignment_functionname': 'first',
-                                   'assignment_startdate': 'first',
-                                   'assignment_enddate': 'first',
-                                   'assignment_active': 'first',
-                                    'assignment_deleted':'first',
-                                    'assignment_flexworkerid':'first',
-                                    'assignmentcomponent_startdate':'first',
-                                    'assignmentcomponent_enddate':'first',
-                                    'assignmentcomponent_wage':'first',
-                                    'timecardline_starttime':'first',
-                                    'timecardline_endtime':'first',
-                                    'timecardline_resttime':'first',
-                                    'timecardline_amount':sum,
-                                    'timecard_totalhours':'first',
-                                    'timecard_totalexpense':'first',
-                                    'payrollcomponent_description':'first',
-                                    'payrollcomponenttype_description':'first',
-                                    'flexworkerbase_flexworkertype':'first',
-                                    'flexworkerbase_active':'first',
-                                    'flexworkerbase_status':'first',
-                                    'staffingcustomer_companyname': 'first',
-                                    'staffingcustomer_active': 'first',
-                                    'staffingcustomer_region':'first',
-                                    'timecardrepresentation_description':'first',
-                                    'period_description':'first',
-                                    'hour':'first',
-                                    'dayofweek':'first',
-                                    'quarter':'first',
-                                    'month':'first',
-                                    'year':'first',
-                                    'dayofyear':'first',
-                                    'dayofmonth':'first',
-                                    'weekofyear':'first'})
+    # More conditions for data squeezing can be added
+    return df.groupby(df.index).agg({k:sum if k == 'timecardline_amount' else 'first' for k in df.columns})
 
 
-def get_flex_groups(df, features):
+def get_flex_groups(df, features, store_locally=False, company_split=True):
     '''
     Use this segment to make different dataframes for each flexworker available in the dataset. There should be a list
     of dataframes returned, each containing all the relevant information for the selected worker.
@@ -199,84 +201,58 @@ def get_flex_groups(df, features):
         if len(df1[company_grouping].unique()) > 1:
             group_comp = df1.groupby(company_grouping)
             j=0
-            for company in df1[company_grouping].unique():
-                df2 = group_comp.get_group(company)
-                df2 = remove_double_indices(df2)
-                length = len(df2)
-                if not (df2[features[-1]] == 0).all():
-                    df_list.append(df2[features])
-                    # df_list.append(df2[features[0]])
-            #         df2.to_excel(f"../../data/edited data/workers exp/worker{i}_company{j}.xlsx")
-            #     j+=1
-            # i+=1
-            continue
+            if company_split:
+                for company in df1[company_grouping].unique():
+                    df2 = group_comp.get_group(company)
+                    df2 = remove_double_indices(df2)
+                    if not (df2[features[-1]] == 0).all():
+                        df_list.append(df2[features])
+                        if store_locally: df2.to_excel(f"../../data/edited data/workers exp/worker{i}_company{j}.xlsx")
+                    j+=1
+                i+=1
+                continue
         df1 = remove_double_indices(df1)
-        length = len(df1)
         if not (df1[features[-1]] == 0).all():
             df_list.append(df1[features]) # For now drop the ids, but they are needed later!
-            # df_list.append(df1[features[0]]) # For now drop the ids, but they are needed later!
-            # df_list.append(df1.drop(columns=grouping)) # For now drop the ids, but they are needed later!
+            if store_locally: df1.to_excel(f"../../data/edited data/workers exp/worker{i}.xlsx")
+        i+=1
 
-        #     df1.to_excel(f"../../data/edited data/workers exp/worker{i}.xlsx")
-        # i+=1
+    if store_locally: df_list[-1].to_excel("../../data/edited data/workers exp/worker example.xlsx")
 
-    # df_list[-1].to_excel("../../data/edited data/workers exp/worker.xlsx")
-    print(min(sizes))
-    print(max(sizes))
-    print(stat.median(sizes))
-    print(stat.mean(sizes))
     return df_list
 
 
-def get_flex_groups_original(df, features):
+def convert_data(df, features, split=True, legacy=False):
+    df_list = create_subsets(df, features, split=split)
     '''
-    Use this segment to make different dataframes for each flexworker available in the dataset. There should be a list
-    of dataframes returned, each containing all the relevant information for the selected worker.
-    Keep in mind that the column name may change, depending on the dataset that is being used.
+    Scale all input variables that would be used for the forecast. The last two flexworkers are the ones that are being
+    used as the validation and test data. 
+    The only data to be fitted for scaling is the test data, which will then be used to scale the rest of the data.
+    Grouping done over flexworkers as G. The categories within G that we're interested in, are the ones that will be 
+    scaled.
     '''
-    name_grouping = "assignment_flexworkerid"
-    company_grouping = "staffingcustomer_companyname"
-    df_list = []
-    max = 0
-    group_df = df.groupby(name_grouping)
-    i = 0
-    for flexworkerid in df[name_grouping].unique():
-        print(flexworkerid)
-        df1 = group_df.get_group(flexworkerid)
-        if len(df1[company_grouping].unique()) > 1:
-            group_comp = df1.groupby(company_grouping)
-            j=0
-            for company in df1[company_grouping].unique():
-                print(company)
-                df2 = group_comp.get_group(company)
-                df2 = remove_double_indices(df2)
-                length = len(df2)
-                if length > max and not (df2[features[-1]] == 0).all():
-                    max = length
-                    if df_list:df_list.pop()
-                    df_list.append(df2[features[0]])
-            #     df2.to_excel(f"../../data/edited data/workers exp/worker{i}_company{j}.xlsx")
-            #     j+=1
-            # i+=1
-            continue
+    df_list = fill_gaps(df_list, dt_inputs=True)
+    df_list = uniform_data_types(df_list)
+    if legacy: df_list, scaler = convert_and_scale_legacy(df_list)
+    else: df_list, scaler = convert_and_scale(df_list)
+    return df_list, scaler
 
-        df1 = remove_double_indices(df1)
-        length = len(df1)
-        if length > max and not (df1[features[-1]] == 0).all():
-            max = length
-            if df_list: df_list.pop()
-            df_list.append(df1[features[0]]) # For now drop the ids, but they are needed later!
-            # df_list.append(df1.drop(columns=grouping)) # For now drop the ids, but they are needed later!
 
-        #     df1.to_excel(f"../../data/edited data/workers exp/worker{i}.xlsx")
-        # i+=1
-        # if df1.empty:
-        #     continue
-        # df_list.append(df1)
-    # df_list[0].plot()
-    # plt.show()
-    # print(df_list[0])
-    # df_list[0] = df_list[0][features[0]]
+def data_split(df_np, in_win_size, out_win_size, mode):
+    if type(df_np) == np.ndarray: array_type=True
 
-    df_list[0].to_excel("../../data/edited data/workers exp/worker.xlsx")
-    return df_list
+    if array_type: df_np, test_data = get_test_set_np([df_np], in_win_size=in_win_size)
+    elif not array_type: df_np, test_data = get_test_set_np(df_np, in_win_size=in_win_size)
+
+    df_np, val_data = get_test_set_np(df_np, in_win_size=in_win_size)
+
+    if array_type: df_np = df_np[0]  # Maybe this looks clumsy but it works
+
+    if mode == 0:
+        x_test, y_test = partition_dataset(test_data, in_win_size, out_win_size)
+        x_val, y_val = partition_dataset(val_data, in_win_size, out_win_size)
+    elif mode == 1:
+        x_test, y_test = multi_partition_dataset(test_data, in_win_size, out_win_size)
+        x_val, y_val = multi_partition_dataset(val_data, in_win_size, out_win_size)
+
+    return df_np, x_test, y_test, x_val, y_val

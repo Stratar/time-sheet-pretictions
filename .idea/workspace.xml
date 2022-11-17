@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="140f14a9-e90d-49de-b741-af2654fb2ca4" name="Default Changelist" comment="">
+    <list default="true" id="140f14a9-e90d-49de-b741-af2654fb2ca4" name="Default Changelist" comment="Individual worker training and bug fixes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/venv/boosted_tree.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/venv/file_reader.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/file_reader.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/venv/neuralnet.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/neuralnet.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/venv/postfresql_import.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/postfresql_import.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/venv/preprocessing.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/preprocessing.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/rnn.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/rnn.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/stattests.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/stattests.py" afterDir="false" />
     </list>
@@ -226,13 +231,21 @@
       <option name="project" value="LOCAL" />
       <updated>1668110140186</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Individual worker training and bug fixes">
+      <created>1668282157858</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1668282157858</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Updated code to connect to the big database" />
     <MESSAGE value="New implementation of training, loading data and preprocessing" />
-    <option name="LAST_COMMIT_MESSAGE" value="New implementation of training, loading data and preprocessing" />
+    <MESSAGE value="Individual worker training and bug fixes" />
+    <option name="LAST_COMMIT_MESSAGE" value="Individual worker training and bug fixes" />
   </component>
   <component name="WindowStateProjectService">
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1664435309814">
@@ -240,16 +253,17 @@
     </state>
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@0.0.1280.680" timestamp="1664435309814" />
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1280.680@0.0.1280.680" timestamp="1664396985759" />
-    <state x="297" y="0" key="CommitChangelistDialog2" timestamp="1668110138932">
+    <state x="297" y="0" key="CommitChangelistDialog2" timestamp="1668282173238">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
+    <state x="297" y="0" key="CommitChangelistDialog2/0.0.1280.680/1920.0.1920.1040@0.0.1280.680" timestamp="1668282173238" />
     <state x="297" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1668110138932" />
-    <state x="2552" y="145" key="FileChooserDialogImpl" timestamp="1667895165580">
-      <screen x="1920" y="0" width="1920" height="1040" />
+    <state x="421" y="95" key="FileChooserDialogImpl" timestamp="1668632749863">
+      <screen x="0" y="0" width="1280" height="680" />
     </state>
     <state x="421" y="95" key="FileChooserDialogImpl/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@0.0.1280.680" timestamp="1664435302993" />
     <state x="2552" y="145" key="FileChooserDialogImpl/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1667895165580" />
-    <state x="421" y="95" key="FileChooserDialogImpl/0.0.1280.680@0.0.1280.680" timestamp="1664396903109" />
+    <state x="421" y="95" key="FileChooserDialogImpl/0.0.1280.680@0.0.1280.680" timestamp="1668632749863" />
     <state width="1899" height="258" key="GridCell.Tab.0.bottom" timestamp="1667987731357">
       <screen x="1920" y="0" width="1920" height="1040" />
     </state>
@@ -305,9 +319,10 @@
     </state>
     <state x="2426" y="251" key="com.intellij.ide.util.TipDialog/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1667909371203" />
     <state x="337" y="164" key="com.intellij.ide.util.TipDialog/0.0.1280.680@0.0.1280.680" timestamp="1668063354181" />
-    <state x="2543" y="225" width="672" height="678" key="search.everywhere.popup" timestamp="1668095452219">
-      <screen x="1920" y="0" width="1920" height="1040" />
+    <state x="415" y="147" width="448" height="444" key="search.everywhere.popup" timestamp="1668632743068">
+      <screen x="0" y="0" width="1280" height="680" />
     </state>
-    <state x="2543" y="225" width="672" height="678" key="search.everywhere.popup/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1668095452219" />
+    <state x="2543" y="225" width="672" height="678" key="search.everywhere.popup/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1668590188827" />
+    <state x="415" y="147" width="448" height="444" key="search.everywhere.popup/0.0.1280.680@0.0.1280.680" timestamp="1668632743068" />
   </component>
 </project>

@@ -27,15 +27,16 @@ cmd_create_merged_dataset = "select assignment.functionname, assignment.startdat
 
 cmd_create_merged_big_dataset = "SELECT * FROM timecarddata_ordered_normal ORDER BY timecardline_linedate LIMIT 1000000;"
 
-cmd_create_worker_big_dataset = "select * from timecarddata_ordered_normal where timecardline_linedate > '2020-01-01' "\
-                                "and assignment_flexworkerid in (select assignment_flexworkerid from " \
-                                "timecarddata_ordered_normal where timecardline_linedate > '2020-01-01' group by " \
-                                "assignment_flexworkerid having sum(timecardline_amount)>0 order by count(*) desc " \
-                                "limit 200) limit 1000000;"
+cmd_create_worker_big_dataset = "select * from timecarddata_ordered_normal_fixed_proper where timecardline_linedate > "\
+                                "'2020-01-01' and assignment_flexworkerid in (select assignment_flexworkerid from " \
+                                "timecarddata_ordered_normal_fixed_proper where timecardline_linedate > '2020-01-01' " \
+                                "group by assignment_flexworkerid having sum(timecardline_amount)>0 order by count(*) "\
+                                "desc limit 200) limit 1000000;"
 
 
 def fetch_postgresql_database():
-    conn = psycopg2.connect(dbname='euur_timecards', user='development', password='development', host="pgpool-aky-20.enschede.akyla")
+    conn = psycopg2.connect(dbname='euur_timecards', user='development', password='development',
+                            host="pgpool-aky-20.enschede.akyla")
     db = read_sql_query(cmd_create_worker_big_dataset, conn)
     conn.close()
     return db

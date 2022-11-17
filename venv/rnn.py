@@ -1,33 +1,8 @@
-from keras.models import Sequential
-from keras.layers import *
-from keras.callbacks import ModelCheckpoint, EarlyStopping
-from keras.losses import MeanSquaredError
 from keras.metrics import RootMeanSquaredError, KLDivergence, Accuracy, MeanAbsoluteError
-from keras.optimizers import Adam
-from keras.models import load_model
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler # This is also a normalizer
+from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-from datetime import datetime
-
-
-def lstm_model(in_shape, out_shape, n_layer_lim=2, lstm_size=128, hid_size=8):
-    model = Sequential()
-    model._name = "lstm"
-    model.add(InputLayer(in_shape))
-    n_layers = in_shape[0]-1
-    if n_layers > n_layer_lim: n_layers = n_layer_lim
-    for _ in range(n_layer_lim):
-        model.add(Bidirectional(LSTM(lstm_size, return_sequences=True, dropout=0.2, recurrent_dropout=0.2)))
-    model.add(Bidirectional(LSTM(lstm_size, dropout=0.2, recurrent_dropout=0.2)))
-    # model.add(Dense(hid_size, 'relu'))
-    model.add(Dense(out_shape[0], 'sigmoid'))
-
-    print(model.summary())
-
-    cp = ModelCheckpoint('model_lstm/', save_best_only=True)
-    return model, cp
 
 
 '''Some things to note about the GRU networks: 
@@ -38,45 +13,6 @@ The default activation of the GRU layer is tanh, which produces values in the ra
 The default recurrent activation is a sigmoid function, producing values between 0 and 1. 
 
 '''
-
-
-def gru_model(in_shape, out_shape, n_layer_lim=2, gru_size=128, hid_size=8): #gru_size=16 as well
-    model = Sequential()
-    model._name = "gru"
-    model.add(InputLayer(in_shape))
-    n_layers = in_shape[0]-1
-    if n_layers > n_layer_lim: n_layers = n_layer_lim
-    for _ in range(n_layers-1):
-        model.add(GRU(gru_size, return_sequences=True, dropout=0.2, recurrent_dropout=0.2))
-    model.add(GRU(gru_size, dropout=0.2, recurrent_dropout=0.2))
-    # model.add(Dense(hid_size, 'relu'))
-    model.add(Dense(out_shape[0], 'sigmoid'))
-
-    print(model.summary())
-
-    cp = ModelCheckpoint('model_gru/', save_best_only=True)
-    return model, cp
-
-
-def conv_model(in_shape, out_shape, n_layer_lim=4, conv_size=145, hid_size=16):
-    model = Sequential()
-    model._name = "conv"
-    model.add(InputLayer(in_shape))
-    # Experimentally, it showed that having one less convolutional layer than the size of the input is best
-    n_layers = in_shape[0]-1
-    # initialiser = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.005, seed=None)
-    if n_layers > n_layer_lim: n_layers = n_layer_lim
-    for _ in range(n_layers):
-        model.add(Conv1D(int(conv_size), kernel_size=3, kernel_initializer=None)) # kernel_size=2
-        conv_size /= 2
-    model.add(Flatten())
-    model.add(Dense(hid_size, 'relu', kernel_initializer=None))
-    model.add(Dense(out_shape[0], 'sigmoid'))
-
-    print(model.summary())
-
-    cp = ModelCheckpoint('model_conv/', save_best_only=True)
-    return model, cp
 
 
 def scale_data(d):
@@ -170,5 +106,27 @@ def store_results(hyperparams, history, results, name):
 
     df = pd.concat([df, results], axis=1)
     # df.to_excel(f"../../data/results/RNN/{name[0]}{name[2]}_{name[1]}_trial 39.xlsx")
-    df.to_excel(f"../../data/results/RNN/{name} 10.xlsx")
+    df.to_excel(f"../../data/results/RNN/{name} 11.xlsx")
 
+
+def store_individual_losses(dict_individual_losses, full_name):
+    df_iterative = pd.DataFrame.from_dict(dict_individual_losses)
+    df_iterative["train mean"] = df_iterative["train loss"].mean()
+    df_iterative["value mean"] = df_iterative["value loss"].mean()
+    df_iterative["test mean"] = df_iterative["test loss"].mean()
+    df_iterative.to_excel(f"../../data/results/RNN/{full_name} losses 6.xlsx")
+
+
+def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler):
+
+    res_train, mse_train, kl_train, acc_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
+    print(mse_train, kl_train, acc_train, rmse_train, mae_train)
+    res_val, mse_val, kl_val, acc_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
+    print(mse_val, kl_val, acc_val, rmse_val, mae_val)
+    res_test, mse_test, kl_test, acc_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
+    print(mse_test, kl_test, acc_test, rmse_test, mae_test)
+
+    df_res = pd.concat([res_train, res_val, res_test], axis=1)
+    result_values = [mse_train, kl_train, acc_train, rmse_train, mae_train, mse_val, kl_val, acc_val, rmse_val, mae_val,
+                     mse_test, kl_test, acc_test, rmse_test, mae_test]
+    return df_res, result_values

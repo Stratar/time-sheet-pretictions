@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import statsmodels.api as sm
-from mlxtend.frequent_patterns import apriori, association_rules
 import pandas as pd
 from scipy.stats import f_oneway
-from preprocessing import uniform_data_types
+from preprocessing import create_subsets, fill_gaps
+import numpy as np
 
 
 def check_correlation(df):
@@ -32,17 +32,20 @@ def group_means(df):
 
 def normality_check(df):
     # Check if normal distribution. If not, try sqrt, cube root, log2, or log10
-    fig = sm.qqplot(df["Aantal uren"], line='45')
+    fig = sm.qqplot(df["timecardline_amount"], line='45')
     plt.show(fig)
 
 
 def distribution_check(df):
     # Get the data distributions
-    fig = sns.displot(df, x="Aantal uren", hue="Inlener")
+    fig = sns.displot(df, x="timecardline_amount", hue="staffingcustomer_companyname")
     plt.show(fig)
 
 
-def anova(df):
+def anova(df, histogram_anova):
+    # print("---------------------------------------")
+    # print("---------------------------------------")
+    # print("                 ANOVA")
     # Calculate the statistical significance between the selected variables
     filtered_columns = []
     for item in df.columns:
@@ -51,45 +54,27 @@ def anova(df):
         try:
             groupped = df.groupby(item)['timecardline_amount'].apply(list)
             results = f_oneway(*groupped)
+            # print(f"For {item} the results are: {results}")
             if results[1] < 0.05:
+                histogram_anova.append(item)
                 filtered_columns.append(item)
-                print("******************Relation between " + item + ":")
-                print(results)
-                print("\n")
-        except:
+                # print("******************Relation between " + item + ":")
+                # print(results)
+                # print("\n")
+        except Exception as e:
+            print(e)
             continue
-    print(filtered_columns)
-    '''
-    df1 = df.rename(columns={"Aantal uren":"Uren"})
-    model = ols(formula="Uren ~ C(Functie)", data=df1)
-    aov_table = sm.stats.anova_lm(model.fit(), typ=2)
-    # Added some extra stats that may not be necessary, focus mostly on the F score and PR
-    aov_table['mean_sq'] = aov_table[:]['sum_sq'] / aov_table[:]['df']
-
-    aov_table['eta_sq'] = aov_table[:-1]['sum_sq'] / sum(aov_table['sum_sq'])
-
-    aov_table['omega_sq'] = (aov_table[:-1]['sum_sq'] - (aov_table[:-1]['df'] * aov_table['mean_sq'][-1])) / (
-                sum(aov_table['sum_sq']) + aov_table['mean_sq'][-1])
-
-    cols = ['sum_sq', 'df', 'mean_sq', 'F', 'PR(>F)', 'eta_sq', 'omega_sq']
-    aov = aov_table[cols]
-    print(aov)
-    '''
+    # print(filtered_columns)
     return filtered_columns
 
 
 def make_boxplot(df):
-    # sns.boxplot(x=df['totalhours'])
-    # plt.show()
-    sns.boxplot(x=df['timecardline_amount'])
-    plt.show()
-    try:
-        sns.boxplot(x=df['staffingcustomer_companyname'])
-        plt.show()
-    except:
-        print("No company name to show.")
-    # sns.boxplot(data=df, x="period", y="totalhours")
-    # plt.show()
+    for feature in df.columns:
+        try:
+            sns.boxplot(x=df[feature])
+            plt.show()
+        except Exception as e:
+            print(e)
 
 
 def make_lineplot(df):
@@ -97,12 +82,14 @@ def make_lineplot(df):
                  style="assignment_flexworkerid", markers=True)
     plt.show()
     try:
-        sns.lineplot(data=df, y="timecardline_amount", hue="assignment_flexworkerid", markers=True)
+        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_enddate",
+                     style="assignment_flexworkerid", markers=True)
         plt.show()
     except:
         print("One worker is displayed.")
     try:
-        sns.lineplot(data=df, y="timecardline_amount" , hue="staffingcustomer_companyname", markers=True)
+        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignmentcomponent_wage",
+                     style="assignment_flexworkerid", markers=True)
         plt.show()
     except:
         print("One company is displayed.")
@@ -169,3 +156,35 @@ def general_statistics(df):
     # return df[correlated_list]
     # Get the number of categories available
     # print(pd.value_counts(df["Inlener"], normalize=True))
+
+
+def stat_mode_initialiser(df, split=1):
+    FEATURES = ['assignment_startdate', 'assignment_enddate', 'quarter', 'weekofyear', 'assignmentcomponent_startdate',
+                'assignmentcomponent_enddate', 'assignment_flexworkerid', 'assignmentcomponent_wage',
+                'staffingcustomer_companyname', 'timecardline_amount']
+    print("Using statistic analysis mode")
+    print(f"Number of workers considered: {len(df[FEATURES[-3]].unique())}")
+    print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
+    df_list = create_subsets(df, FEATURES, split=split, company_split=False)
+    histogram_anova=[]
+    df_list = fill_gaps(df_list, dt_inputs=True)
+    i = 0  # Change this to start the loop sooner or later
+    for cnt, df in enumerate(df_list):
+        if cnt < i: continue
+        print(f"\n**********************************************\n"
+              f"            Input number {cnt}:"
+              f"\n**********************************************")
+        print(f"Worker: {df[FEATURES[0]][0]}")
+        print(f"Company: {df[FEATURES[1]][0]}")
+        # make_boxplot(df)
+        # anova(df, histogram_anova)
+        general_statistics(df)
+        
+    histogram_anova = np.array(histogram_anova)
+    unique_items = np.unique(histogram_anova)
+    print(unique_items)
+    print(len(unique_items))
+    n, bins, patches = plt.hist(histogram_anova, bins='auto')
+    plt.grid(axis='y', alpha=0.75)
+    plt.show()
+    exit()
