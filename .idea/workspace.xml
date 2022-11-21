@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="140f14a9-e90d-49de-b741-af2654fb2ca4" name="Default Changelist" comment="">
+    <list default="true" id="140f14a9-e90d-49de-b741-af2654fb2ca4" name="Default Changelist" comment="Updated version to run on cuda on PC">
+      <change afterPath="$PROJECT_DIR$/venv/Scripts/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -244,8 +245,26 @@
       <option name="project" value="LOCAL" />
       <updated>1669040251792</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Updated version to run on cuda on PC">
+      <created>1669040598400</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1669040598400</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Updated code to connect to the big database" />
@@ -261,12 +280,12 @@
     </state>
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@0.0.1280.680" timestamp="1664435309814" />
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1280.680@0.0.1280.680" timestamp="1664396985759" />
-    <state x="0" y="0" key="CommitChangelistDialog2" timestamp="1669040247964">
+    <state x="0" y="0" key="CommitChangelistDialog2" timestamp="1669046354263">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
     <state x="2366" y="0" key="CommitChangelistDialog2/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1668676264600" />
     <state x="297" y="0" key="CommitChangelistDialog2/0.0.1280.680/1920.0.1920.1040@0.0.1280.680" timestamp="1668282173238" />
-    <state x="0" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1669040247964" />
+    <state x="0" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1669046354263" />
     <state x="421" y="95" key="FileChooserDialogImpl" timestamp="1668632749863">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
