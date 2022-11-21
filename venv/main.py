@@ -25,9 +25,9 @@ if __name__ == '__main__':
     mode = 1
     split = 1                       # Split the data according to employees and their individual companies they work for
     individual = True               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
-    connection = True               # Enable if there is a connection to the Akyla database
+    connection = False               # Enable if there is a connection to the Akyla database
     general_prediction_mode = False # Controls whether the predictions will be made for each specific worker, or general
-    in_win_size = 7                 # Control how many days are used for forecasting the working hours
+    in_win_size = 14                 # Control how many days are used for forecasting the working hours
     out_win_size = 1                # Controls how many days in advance the
 
     if len(sys.argv) > 1:
@@ -80,15 +80,13 @@ if __name__ == '__main__':
     for a neural network to work with. This process requires the embeddings to be generated through an entirely
     separate embedding training network.
     '''
-
-    # Add Encoder for categorical variables with 'frozen' weights so that the vectorisations of the words stay the same
-
     start = datetime.now()
-    i = 0                           # Set as a means to start the training from a different index
+    start_at = 36       #11, 13, 15, 18, 20, 21, 30, 31, 36                  # Set as a means to start the training from a different index
+    end_at = start_at
     dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
 
     for cnt, df_np in enumerate(df_list):
-        if cnt < i:continue
+        if cnt < start_at:continue
 
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
@@ -97,12 +95,12 @@ if __name__ == '__main__':
         '''
         if not general_prediction_mode:
             # Pass an argument for saving each model separately
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, gru_size=16)
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, gru_size=64)
             model.compile()
             model.check()
 
         print(f"\n********************************************************************************************\n"
-              f"                                        Iteration {i}:"
+              f"                                        Iteration {start_at}:"
               f"\n********************************************************************************************")
 
         if not general_prediction_mode:
@@ -122,7 +120,7 @@ if __name__ == '__main__':
             - Apply some generalised model for forecasting.
         '''
         try:
-            history = model.fit(x_train, y_train, x_val, y_val, 20)
+            history = model.fit(x_train, y_train, x_val, y_val, 500)
         except Exception as e:
             print(f"Exception thrown: {e}")
             continue
@@ -135,8 +133,8 @@ if __name__ == '__main__':
             print(f"train loss: {dict_individual_losses['train loss'][-1]}")
             print(f"value loss: {dict_individual_losses['value loss'][-1]}")
             print(f"test loss: {dict_individual_losses['test loss'][-1]}")
-
-        i += 1
+        if start_at == end_at: break
+        start_at += 1
 
     end = datetime.now()
     train_time = (end-start).total_seconds()                                    # Get the training time of the model
@@ -147,7 +145,7 @@ if __name__ == '__main__':
 
     if individual: store_individual_losses(dict_individual_losses, full_name)   # Store the individual loss collections
 
-    # plot_history(history)
+    plot_history(history)
 
     hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
 

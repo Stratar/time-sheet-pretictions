@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="140f14a9-e90d-49de-b741-af2654fb2ca4" name="Default Changelist" comment="Individual worker training and bug fixes">
+    <list default="true" id="140f14a9-e90d-49de-b741-af2654fb2ca4" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/venv/nn_util.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/venv/boosted_tree.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/venv/file_reader.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/file_reader.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/neuralnet.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/neuralnet.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/postfresql_import.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/postfresql_import.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/venv/preprocessing.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/preprocessing.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/rnn.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/rnn.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/venv/stattests.py" beforeDir="false" afterPath="$PROJECT_DIR$/venv/stattests.py" afterDir="false" />
     </list>
@@ -238,14 +236,22 @@
       <option name="project" value="LOCAL" />
       <updated>1668282157858</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Individual worker training, with added individual worker models. NOT IMPLEMENTED INDIVIDUAL MODEL SAVING YET. Removed the extreme duplicates from the database.">
+      <created>1668676265738</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1668676265740</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Updated code to connect to the big database" />
     <MESSAGE value="New implementation of training, loading data and preprocessing" />
     <MESSAGE value="Individual worker training and bug fixes" />
-    <option name="LAST_COMMIT_MESSAGE" value="Individual worker training and bug fixes" />
+    <MESSAGE value="Individual worker training, with added individual worker models. NOT IMPLEMENTED INDIVIDUAL MODEL SAVING YET. Removed the extreme duplicates from the database." />
+    <option name="LAST_COMMIT_MESSAGE" value="Individual worker training, with added individual worker models. NOT IMPLEMENTED INDIVIDUAL MODEL SAVING YET. Removed the extreme duplicates from the database." />
   </component>
   <component name="WindowStateProjectService">
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1664435309814">
@@ -253,9 +259,10 @@
     </state>
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@0.0.1280.680" timestamp="1664435309814" />
     <state x="96" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1280.680@0.0.1280.680" timestamp="1664396985759" />
-    <state x="297" y="0" key="CommitChangelistDialog2" timestamp="1668282173238">
-      <screen x="0" y="0" width="1280" height="680" />
+    <state x="2366" y="0" key="CommitChangelistDialog2" timestamp="1668676264600">
+      <screen x="1920" y="0" width="1920" height="1040" />
     </state>
+    <state x="2366" y="0" key="CommitChangelistDialog2/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1668676264600" />
     <state x="297" y="0" key="CommitChangelistDialog2/0.0.1280.680/1920.0.1920.1040@0.0.1280.680" timestamp="1668282173238" />
     <state x="297" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1668110138932" />
     <state x="421" y="95" key="FileChooserDialogImpl" timestamp="1668632749863">
@@ -314,10 +321,10 @@
     <state x="142" y="0" key="SettingsEditor/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@0.0.1280.680" timestamp="1664456957318" />
     <state x="2133" y="0" key="SettingsEditor/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1665585486487" />
     <state x="142" y="0" key="SettingsEditor/0.0.1280.680@0.0.1280.680" timestamp="1666963150969" />
-    <state x="337" y="164" key="com.intellij.ide.util.TipDialog" timestamp="1668063354181">
-      <screen x="0" y="0" width="1280" height="680" />
+    <state x="2426" y="251" key="com.intellij.ide.util.TipDialog" timestamp="1668680415327">
+      <screen x="1920" y="0" width="1920" height="1040" />
     </state>
-    <state x="2426" y="251" key="com.intellij.ide.util.TipDialog/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1667909371203" />
+    <state x="2426" y="251" key="com.intellij.ide.util.TipDialog/0.0.1280.680/-1920.78.1920.1040/1920.0.1920.1040@1920.0.1920.1040" timestamp="1668680415327" />
     <state x="337" y="164" key="com.intellij.ide.util.TipDialog/0.0.1280.680@0.0.1280.680" timestamp="1668063354181" />
     <state x="415" y="147" width="448" height="444" key="search.everywhere.popup" timestamp="1668632743068">
       <screen x="0" y="0" width="1280" height="680" />

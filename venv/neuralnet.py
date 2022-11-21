@@ -1,17 +1,53 @@
 import tensorflow as tf
 import numpy as np
+from nn_util import LearningRateReducer
 
 
 def rmse(y_true, y_pred):
     return np.sqrt(tf.keras.losses.MeanSquaredError(float(y_true), float(y_pred)))
 
 
+class Embedder:
+    def __init__(self, unique_cat_size, embedding_size, n_layers, gru_size, learning_rate, in_shape, out_shape):
+        categorical_embedding_model = tf.keras.Sequential()
+        input_categorical_data = tf.keras.layers.Input(shape=(unique_cat_size,))
+        categorical_embedding_model.add(input_categorical_data)
+        embedder = tf.keras.layers.Embedding(input_dim=unique_cat_size, output_dim=embedding_size,
+                                             embeddings_initializer=tf.keras.initializers.RandomUniform(
+                                                 seed=42))#Give some constant seed for the replicability of the results
+        embedder.trainable = False  # Disable training in order to get consistent vector representations
+        categorical_embedding_model.add(embedder)
+        # embedder_flat = tf.keras.layers.Flatten(embedder)
+        embedder_flat = tf.keras.layers.Flatten()
+        categorical_embedding_model.add(embedder_flat)
+
+        self.n_layers = n_layers
+        self.layer_size = gru_size
+        self.learning_rate = learning_rate
+        self.epochs = 1
+        self.model = tf.keras.Sequential()
+        self.model._name = "AdvGRU"
+        self.name = self.model._name
+        self.model.add(tf.keras.layers.InputLayer(in_shape))
+        self.model.add(tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0.2)))
+        self.model.add(tf.keras.layers.RepeatVector(out_shape[0]))
+        self.model.add(tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0.2,
+                                                                         return_sequences=True)))
+        self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=40)
+        self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru/', save_best_only=True)
+
+
 class NeuralNet:
 
-    def __init__(self, in_shape, out_size=5, n_layers=2, size_layer=300, lr=0.01):
+    def __init__(self, in_shape, out_size=5, n_layers=2, size_layer=300, lr=1e-4):
         """
         This is a trial implementation and demonstration of how the embedder would be integrated with an existing model
         """
+
+        # Add Encoder for categorical variables with 'frozen' weights so that the vectorisations of the words stay the same
         in_cat = ''
         in_num = [1, 2, 3, 4, 5]
         numerical_data = in_num
@@ -20,18 +56,14 @@ class NeuralNet:
         unique_cat_size = len(np.unique(categorical_data))
         embedding_size = min(np.ceil((unique_cat_size/2), 50)) # Rule of thumb for determining size
         embedding_size = int(embedding_size)
+
         categorical_embedding_model = tf.keras.Sequential()
         input_categorical_data = tf.keras.layers.Input(shape=(unique_cat_size,))
-        categorical_embedding_model.add(input_categorical_data)
-        input_numerical_data = tf.keras.layers.Input(shape=(numerical_data.shape[1],))
-        # embedder = tf.keras.layers.Embedding(input_dim=unique_cat_size, output_dim=embedding_size)(input_categorical_data)
+        input_numerical_data = tf.keras.layers.Input(shape=in_shape)
         embedder = tf.keras.layers.Embedding(input_dim=unique_cat_size, output_dim=embedding_size,
-                                             embeddings_initializer=tf.keras.initializers.RandomUniform(seed=42)) # Give some constant seed for the replicability of the results
+                                             embeddings_initializer=tf.keras.initializers.RandomUniform(seed=42))(input_categorical_data) # Give some constant seed for the replicability of the results
         embedder.trainable = False                  # Disable training in order to get consistent vector representations
-        categorical_embedding_model.add(embedder)
-        # embedder_flat = tf.keras.layers.Flatten(embedder)
-        embedder_flat = tf.keras.layers.Flatten()
-        categorical_embedding_model.add(embedder_flat)
+        embedder_flat = tf.keras.layers.Flatten(embedder)
         # This can now be used as an input to the overall network.
         input_concatenated = tf.keras.layers.Concatenate()([embedder_flat, input_numerical_data])
 
@@ -199,7 +231,7 @@ class GRUEmbeddedNeuralNetwork:
 
 class AdvGRUNeuralNetwork:
 
-    def __init__(self, in_shape, out_shape, n_layers=3, gru_size=32, hid_size=4, lr=1e-3):
+    def __init__(self, in_shape, out_shape, n_layers=3, gru_size=32, hid_size=4, lr=1e-4):
         self.n_layers = n_layers
         self.layer_size = gru_size
         self.hid_size = hid_size
@@ -216,18 +248,18 @@ class AdvGRUNeuralNetwork:
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=40)
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=80)
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru/', save_best_only=True)
 
     def compile(self):
         self.model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=self.optimizer,
                                                         metrics=[tf.keras.metrics.RootMeanSquaredError(),
-                                                        tf.keras.metrics.KLDivergence(), tf.keras.metrics.Accuracy()])
+                                                        tf.keras.metrics.KLDivergence()])
 
     def fit(self, x, y, x_val, y_val, epochs=100):
         self.epochs = epochs
         history = self.model.fit(x, y, shuffle=False, validation_data=[x_val, y_val], epochs=epochs,
-                                 callbacks=[self.cp, self.early_stop])
+                                 callbacks=[self.cp, self.early_stop]) # Remove the LR reducer if need be
         return history
 
     def evaluate(self, x, y):

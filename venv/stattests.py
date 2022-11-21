@@ -81,18 +81,12 @@ def make_lineplot(df):
     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
                  style="assignment_flexworkerid", markers=True)
     plt.show()
-    try:
-        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_enddate",
-                     style="assignment_flexworkerid", markers=True)
-        plt.show()
-    except:
-        print("One worker is displayed.")
-    try:
-        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignmentcomponent_wage",
-                     style="assignment_flexworkerid", markers=True)
-        plt.show()
-    except:
-        print("One company is displayed.")
+    # try:
+    #     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_enddate",
+    #                  style="assignment_flexworkerid", markers=True)
+    #     plt.show()
+    # except:
+    #     print("One worker is displayed.")
 
 
 def general_statistics(df):
@@ -138,6 +132,19 @@ def general_statistics(df):
     print(df.describe())
     print("---------------------------------------")
     print("---------------------------------------")
+
+    print("Quantile analysis")
+    amount_data=df['timecardline_amount']
+    print(f"25%:\t{amount_data.quantile(0.25)}\n"
+          f"50%:\t{amount_data.quantile(0.5)}\n"
+          f"75%:\t{amount_data.quantile(0.75)}\n"
+          f"99.9%:\t{amount_data.quantile(0.999)}\n"
+          f"std:\t{amount_data.std()}\n"
+          f"mean:\t{amount_data.mean()}")
+
+    print("---------------------------------------")
+    print("---------------------------------------")
+
     print(f"Assignment start dates: {df.iloc[:,0].unique()}")
     print(f"Assignment end date: {df.iloc[:,1].unique()}")
     print(f"Assignment component start date: {df.iloc[:,2].unique()}")
@@ -165,10 +172,10 @@ def stat_mode_initialiser(df, split=1):
     print("Using statistic analysis mode")
     print(f"Number of workers considered: {len(df[FEATURES[-3]].unique())}")
     print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
-    df_list = create_subsets(df, FEATURES, split=split, company_split=False)
+    df_list = create_subsets(df, FEATURES, split=split, company_split=True)
     histogram_anova=[]
     df_list = fill_gaps(df_list, dt_inputs=True)
-    i = 0  # Change this to start the loop sooner or later
+    i = 36  # Change this to start the loop sooner or later
     for cnt, df in enumerate(df_list):
         if cnt < i: continue
         print(f"\n**********************************************\n"

@@ -3,6 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
+import os
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 '''Some things to note about the GRU networks: 
@@ -66,13 +69,11 @@ def plot_predictions(model, X, y, scaler, start=0, end=150, show_plots=False):
         plt.show()
     kl = KLDivergence()
     kl.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
-    acc = Accuracy()
-    acc.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
     rmse = RootMeanSquaredError()
     rmse.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
     mae = MeanAbsoluteError()
     mae.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
-    return df, mse(y, predictions), kl.result().numpy(), acc.result().numpy(), rmse.result().numpy(), mae.result().numpy()
+    return df, mse(y, predictions), kl.result().numpy(), rmse.result().numpy(), mae.result().numpy()
 
 
 def plot_history(history):
@@ -94,11 +95,11 @@ def plot_history(history):
     plt.show()
 
 
-def store_results(hyperparams, history, results, name):
+def store_results(hyperparams, history, results, full_name):
     df = pd.DataFrame(columns=['train time', 'layer number', 'input shape', 'output shape', 'layer size',
-                               'hidden size', 'learning rate', 'epochs', 'mse train', 'kl train', 'accuracy train',
-                               'rmse train', 'mae train', 'mse val', 'kl val', 'accuracy val','rmse val', 'mae val',
-                               'mse test', 'kl test', 'accuracy test', 'rmse test', 'mae test'])
+                               'hidden size', 'learning rate', 'epochs', 'mse train', 'kl train',
+                               'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val', 'mae val',
+                               'mse test', 'kl test', 'rmse test', 'mae test'])
     list = hyperparams + history
 
     for col, i in zip(df, list):
@@ -106,7 +107,9 @@ def store_results(hyperparams, history, results, name):
 
     df = pd.concat([df, results], axis=1)
     # df.to_excel(f"../../data/results/RNN/{name[0]}{name[2]}_{name[1]}_trial 39.xlsx")
-    df.to_excel(f"../../data/results/RNN/{name} 11.xlsx")
+    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
+        os.makedirs(f"../../data/results/RNN/{full_name}")
+    df.to_excel(f"../../data/results/RNN/{full_name}/ 15 (36).xlsx")
 
 
 def store_individual_losses(dict_individual_losses, full_name):
@@ -114,19 +117,21 @@ def store_individual_losses(dict_individual_losses, full_name):
     df_iterative["train mean"] = df_iterative["train loss"].mean()
     df_iterative["value mean"] = df_iterative["value loss"].mean()
     df_iterative["test mean"] = df_iterative["test loss"].mean()
-    df_iterative.to_excel(f"../../data/results/RNN/{full_name} losses 6.xlsx")
+    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
+        os.makedirs(f"../../data/results/RNN/{full_name}")
+    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses 16 (36).xlsx")
 
 
 def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler):
 
-    res_train, mse_train, kl_train, acc_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
-    print(mse_train, kl_train, acc_train, rmse_train, mae_train)
-    res_val, mse_val, kl_val, acc_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
-    print(mse_val, kl_val, acc_val, rmse_val, mae_val)
-    res_test, mse_test, kl_test, acc_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
-    print(mse_test, kl_test, acc_test, rmse_test, mae_test)
+    res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
+    print(mse_train, kl_train, rmse_train, mae_train)
+    res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
+    print(mse_val, kl_val, rmse_val, mae_val)
+    res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
+    print(mse_test, kl_test, rmse_test, mae_test)
 
     df_res = pd.concat([res_train, res_val, res_test], axis=1)
-    result_values = [mse_train, kl_train, acc_train, rmse_train, mae_train, mse_val, kl_val, acc_val, rmse_val, mae_val,
-                     mse_test, kl_test, acc_test, rmse_test, mae_test]
+    result_values = [mse_train, kl_train, rmse_train, mae_train, mse_val, kl_val, rmse_val, mae_val,
+                     mse_test, kl_test, rmse_test, mae_test]
     return df_res, result_values
