@@ -28,7 +28,7 @@ if __name__ == '__main__':
     individual = True               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
     connection = False               # Enable if there is a connection to the Akyla database
     general_prediction_mode = False # Controls whether the predictions will be made for each specific worker, or general
-    in_win_size = 7                 # Control how many days are used for forecasting the working hours
+    in_win_size = 14                 # Control how many days are used for forecasting the working hours
     out_win_size = 1                # Controls how many days in advance the
 
     if len(sys.argv) > 1:
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     The features considered change depending on the mode, as well as depending on the kinds of data that we want to 
     use for the forecasting of working hours.
     '''
-    if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecardline_amount']
+    if mode == 1: FEATURES = ['dayofweek', 'dayofyear',"year", 'weekofyear', 'timecard_totalhours', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
     df = read_file(connection=connection, store_locally=True)
@@ -89,7 +89,7 @@ if __name__ == '__main__':
     separate embedding training network.
     '''
     start = datetime.now()
-    #11, 18, 20, 21, 29, 30, 31, 33, 36, 38, 53, 76, 79, 80, 87, 88, 93
+    #11, 18, 20, 21, 29, 33, 34, 36, 38, 53, 76, 79, 80, 87, 88, 93, 99, 106, 118, 119
     # Set as a means to start the training from a different index
     end_at = start_at
     dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
@@ -104,7 +104,7 @@ if __name__ == '__main__':
         '''
         if not general_prediction_mode:
             # Pass an argument for saving each model separately
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=258)
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=128)
             model.compile()
             model.check()
 

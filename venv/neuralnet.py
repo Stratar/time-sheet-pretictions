@@ -249,7 +249,7 @@ class AdvGRUNeuralNetwork:
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=100)
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=150)
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru/', save_best_only=True)
 
     def compile(self):

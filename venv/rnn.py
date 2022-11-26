@@ -110,7 +110,7 @@ def store_results(hyperparams, history, results, full_name, iteration_number):
     df = pd.concat([df, results], axis=1)
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
-    df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}e.xlsx")
+    df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}a.xlsx")
 
 
 def store_individual_losses(dict_individual_losses, full_name, iteration_number):
@@ -120,7 +120,7 @@ def store_individual_losses(dict_individual_losses, full_name, iteration_number)
     df_iterative["test mean"] = df_iterative["test loss"].mean()
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
-    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses {iteration_number}e.xlsx")
+    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses {iteration_number}a.xlsx")
 
 
 def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler):

@@ -242,8 +242,39 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     return df_list
 
 
+def add_support_variables(df_list):
+    for df in df_list:
+        print(df.head())
+        print("--------------------------")
+        df["amount_sum"] = df["timecardline_amount"].copy()
+
+
+
+        all_years = df["year"].unique()
+        all_weeks = df["weekofyear"].unique()
+
+        df1 = df.groupby(["year", "weekofyear"]).agg({k:sum if k == 'amount_sum' else 'first' for k in ["amount_sum", "weekofyear"]}).drop(["weekofyear"], axis=1)
+
+        for year in all_years:
+            df2 = df1.loc[year]
+            print(df2)
+            for week in all_weeks:
+                df3 = df2.loc[week]
+                hour_val = df3.iloc[0]
+                print(week)
+                print(hour_val)
+                exit()
+
+        print(df1)
+        # df["amount sum"] = np.where(df["weekofyear"]==df1.index, df1["amount_sum"""])
+        # print(df)
+        exit()
+
+
 def convert_data(df, features, split=True, legacy=False):
     df_list = create_subsets(df, features, split=split)
+    df_list = add_support_variables(df_list)
+    exit()
     '''
     Scale all input variables that would be used for the forecast. The last two flexworkers are the ones that are being
     used as the validation and test data. 

@@ -16,7 +16,7 @@ def plotter(df):
     test_actuals = df.iloc[:, -1][~np.isnan(df.iloc[:, -1])]
     plt.style.use('seaborn')
     plt.rcParams['axes.grid'] = True
-    figure, axis = plt.subplots(4, sharex=True, sharey=True)
+    figure, axis = plt.subplots(5, sharex=True, sharey=True)
     axis[0].plot(np.arange(len(train_predictions)), train_predictions, label="Predictions")
     axis[0].plot(np.arange(len(train_actuals)), train_actuals, label="Actuals")
     axis[0].title.set_text('Train Run')
@@ -26,8 +26,10 @@ def plotter(df):
     axis[2].plot(np.arange(len(test_predictions)), test_predictions, label="Predictions")
     axis[2].plot(np.arange(len(test_actuals)), test_actuals, label="Actuals")
     axis[2].title.set_text('Test Run')
-    axis[3].fill_between(np.arange(len(test_predictions)), test_predictions, test_actuals)
-    axis[3].title.set_text('Painted Test Difference')
+    axis[3].fill_between(np.arange(len(train_predictions)), train_predictions, train_actuals)
+    axis[3].title.set_text('Painted Train Difference')
+    axis[4].fill_between(np.arange(len(test_predictions)), test_predictions, test_actuals)
+    axis[4].title.set_text('Painted Test Difference')
     lines = []
     labels = []
 
@@ -45,7 +47,7 @@ if __name__ == '__main__':
     iteration = 11
     if len(sys.argv) > 1:
         iteration = int(sys.argv[1])
-    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}d.xlsx")
+    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}a.xlsx")
 
     print(df.head())
 
@@ -57,12 +59,13 @@ if __name__ == '__main__':
     layer_number = df["layer number"][0]
     lr = df["learning rate"][0]
     epochs = df["epochs"][0]
-    print(f"------------------------------------------------------\n"
-          f"|*train loss: {round(train_loss, 3)}\t|*layer size: {layer_size}\t|\n"
+    in_win_size = df["input shape"][0]
+    print(f"---------------------------------------------------------------------------------------------------\n"
+          f"|*train loss: {round(train_loss, 3)}\t|*layer size: {layer_size}\t|*input window size: {in_win_size}\t|\n"
           f"|*value loss: {round(val_loss, 3)}\t|*layer number: {layer_number}\t|\n"
           f"|*test loss: {round(test_loss, 3)}\t|*epochs: {epochs}\t\t|\n"
           f"|*time: {round(time/60, 2)} mins\t|*learning rate: {lr}\t|\n"
-          f"------------------------------------------------------\n")
+          f"---------------------------------------------------------------------------------------------------\n")
 
     plotter(df)
 
