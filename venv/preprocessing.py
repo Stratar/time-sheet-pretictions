@@ -254,21 +254,36 @@ def add_support_variables(df_list):
         all_weeks = df["weekofyear"].unique()
 
         df1 = df.groupby(["year", "weekofyear"]).agg({k:sum if k == 'amount_sum' else 'first' for k in ["amount_sum", "weekofyear"]}).drop(["weekofyear"], axis=1)
-
-        for year in all_years:
-            df2 = df1.loc[year]
-            print(df2)
-            for week in all_weeks:
-                df3 = df2.loc[week]
-                hour_val = df3.iloc[0]
-                print(week)
-                print(hour_val)
-                exit()
-
         print(df1)
+        idx = df[df["dayofweek"]==0].index.values[0]
+        print(idx)
+        df = df.loc[idx:,:]
+        print(df.head())
+        df4 = df.loc[:, ["amount_sum"]].rolling(7, step=7).sum()
+        # df4["amount_sum"] += hour_val
+        print("start")
+        print(df4)
+        print("done")
+        df = pd.concat([df, df4], axis=1)
+        df["amount_sum"] = df["amount_sum"].shift(-1).fillna(method='bfill')
+        print(df)
+        exit()
+
+        # for year in all_years:
+        #     df2 = df1.loc[year]
+        #     print(df2)
+        #     for week in all_weeks:
+        #         df3 = df2.loc[week]
+        #         hour_val = df3.iloc[0]
+        #         print(week)
+        #         print(hour_val)
+        #         '''
+        #         At this point we know the total amount for each week of each year, so the dataframe needs to be filled
+        #         in for rows up to the end of the selected week.
+        #         '''
+        # print(df1)
         # df["amount sum"] = np.where(df["weekofyear"]==df1.index, df1["amount_sum"""])
         # print(df)
-        exit()
 
 
 def convert_data(df, features, split=True, legacy=False):
