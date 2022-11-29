@@ -218,10 +218,17 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
         flexworker_sheet = new_group.loc[flexworker]
         print(len(flexworker_sheet.index.unique(level=0)))
         print("-----------------------------------------------------------------")
+        dates_dict = {'start': [], 'end': []}
         for company in flexworker_sheet.index.unique(level=0):
-            company_sheet = flexworker_sheet.loc[company]
-            assignment_start_end_dates = [company_sheet.loc[:,'assignment_startdate'].unique(), company_sheet.loc[:,'assignment_enddate'].unique()]
-            print(assignment_start_end_dates)
+            s =[]
+            e = []
+            for start, end in zip(flexworker_sheet.loc[company, 'assignment_startdate'].unique(), flexworker_sheet.loc[company, 'assignment_enddate'].unique()):
+                s.append(start)
+                e.append(end)
+            dates_dict['start'].append(s)
+            dates_dict['end'].append(e)
+
+        print(dates_dict)
     exit()
 
     i = 0
