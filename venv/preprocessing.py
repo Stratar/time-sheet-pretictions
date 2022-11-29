@@ -210,34 +210,43 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     df_list = []
     group_df = df.groupby(name_grouping)
 
-    new_group = df.groupby([name_grouping, company_grouping], group_keys=True)['assignment_startdate', 'assignment_enddate'].apply(lambda x: x)
-    print(new_group.index)
-    print(new_group.index.unique(level=0))
+    new_group = df.groupby([name_grouping, company_grouping], group_keys=True).apply(lambda x: x)
+    i, cnt = 0, 0
     for flexworker in new_group.index.unique(level=0):
-        print("-----------------------------------------------------------------")
         flexworker_sheet = new_group.loc[flexworker]
-        print(len(flexworker_sheet.index.unique(level=0)))
-        print("-----------------------------------------------------------------")
         dates_dict = {'start': [], 'end': []}
+        j = 0
         for company in flexworker_sheet.index.unique(level=0):
-            s =[]
-            e = []
-            for start, end in zip(flexworker_sheet.loc[company, 'assignment_startdate'].unique(), flexworker_sheet.loc[company, 'assignment_enddate'].unique()):
+            timecard_sheets = flexworker_sheet.loc[company]
+            s, e = [], []
+            for start, end in zip(timecard_sheets['assignment_startdate'].unique(), timecard_sheets['assignment_enddate'].unique()):
                 s.append(start)
                 e.append(end)
             dates_dict['start'].append(s)
             dates_dict['end'].append(e)
-
-        print(dates_dict)
+            flexworker_sheet['active assignments'] = 1
+        for timecardline in flexworker_sheet.index.unique():
+            timecard_sheet = flexworker_sheet.loc[timecardline]
+            for start, end in zip(dates_dict['start'], dates_dict['end']):
+                if (s <= timecardline[1] <= e for s, e, in zip(start, end)):
+                    # This may be copying and overwriting previously encountered values, because it creates a copy of
+                    # the original dataframe column, consider making an independent list that gets appended to the dataframe instead.
+                    timecard_sheet['active assignments'] += 1
+            if not (timecard_sheet['timecardline_amount'] == 0).all():
+                df_list.append(timecard_sheet[features])  # For now drop the ids, but they are needed later!
+                if store_locally: timecard_sheet.to_excel(f"../../data/edited data/workers exp/worker{i}_company{j}.xlsx")
+            i+=1
+            continue
+        print(flexworker_sheet)
+        i+=1
+        cnt+=1
     exit()
 
     i = 0
     flexworker_collection = df[name_grouping].unique()
-    sizes = []
     cnt = 0
     for flexworkerid in flexworker_collection:
         df1 = group_df.get_group(flexworkerid)
-        sizes.append(df1.shape[0])
         if len(df1[company_grouping].unique()) > 1:
             group_comp = df1.groupby(company_grouping)
             j=0
