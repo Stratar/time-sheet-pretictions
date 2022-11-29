@@ -13,7 +13,7 @@ def get_savefile_name(mode, model, features):
     if mode == 1: mode_name = 'multivariate_'
     else: mode_name = 'univariate_'
     model_name = model.name + "_"
-    target_name = features[-1]
+    target_name = "timecardline_amount"
     full_name = mode_name+model_name+target_name
     return full_name
 
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     The features considered change depending on the mode, as well as depending on the kinds of data that we want to 
     use for the forecasting of working hours.
     '''
-    if mode == 1: FEATURES = ['dayofweek', 'dayofyear',"year", 'weekofyear', 'timecard_totalhours', 'timecardline_amount']
+    if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecard_totalhours', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
     df = read_file(connection=connection, store_locally=True)

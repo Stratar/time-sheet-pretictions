@@ -209,6 +209,21 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     company_grouping = "staffingcustomer_companyname"
     df_list = []
     group_df = df.groupby(name_grouping)
+
+    new_group = df.groupby([name_grouping, company_grouping], group_keys=True)['assignment_startdate', 'assignment_enddate'].apply(lambda x: x)
+    print(new_group.index)
+    print(new_group.index.unique(level=0))
+    for flexworker in new_group.index.unique(level=0):
+        print("-----------------------------------------------------------------")
+        flexworker_sheet = new_group.loc[flexworker]
+        print(len(flexworker_sheet.index.unique(level=0)))
+        print("-----------------------------------------------------------------")
+        for company in flexworker_sheet.index.unique(level=0):
+            company_sheet = flexworker_sheet.loc[company]
+            assignment_start_end_dates = [company_sheet.loc[:,'assignment_startdate'].unique(), company_sheet.loc[:,'assignment_enddate'].unique()]
+            print(assignment_start_end_dates)
+    exit()
+
     i = 0
     flexworker_collection = df[name_grouping].unique()
     sizes = []
@@ -288,8 +303,7 @@ def add_support_variables(df_list):
 
 def convert_data(df, features, split=True, legacy=False):
     df_list = create_subsets(df, features, split=split)
-    df_list = add_support_variables(df_list)
-    exit()
+    # df_list = add_support_variables(df_list)
     '''
     Scale all input variables that would be used for the forecast. The last two flexworkers are the ones that are being
     used as the validation and test data. 
