@@ -144,7 +144,8 @@ def convert_and_scale(df_list):
 def create_subsets(df, features, split=-1, company_split=True):
     df_list = []
     if split == 1:
-        df_list = get_flex_groups(df, features, company_split=company_split)
+        df_list = get_flex_groups(df, features)
+        # df_list = get_flex_groups(df, features, company_split=company_split)
     else:
         df_list.append(df)
 
@@ -159,9 +160,9 @@ def fill_gaps(df_list, dt_inputs=False):
         cols = df.columns
         df1 = df.drop(columns=cols[-1]).resample('1D').ffill()
         if dt_inputs:
-            df1['dayofweek'] = df1.index.dayofweek
-            df1['weekofyear'] = df1.index.isocalendar().week
-            df1['dayofyear'] = df1.index.dayofyear
+            if 'dayofweek' in cols: df1['dayofweek'] = df1.index.dayofweek
+            if 'weekofyear' in cols: df1['weekofyear'] = df1.index.isocalendar().week
+            if 'dayofyear' in cols: df1['dayofyear'] = df1.index.dayofyear
         df2 = df.drop(columns=cols[:-1]).resample('1D').mean().fillna(0)
         df_list[cnt] = pd.concat([df1, df2], axis=1)
         if cnt < 0: # Just to see the differences between double indices
@@ -199,6 +200,31 @@ def remove_double_indices(df, cnt):
     return df.groupby(df.index).agg({k:sum if k == 'timecardline_amount' else 'first' for k in df.columns})
 
 
+def get_assignment_dates(df):
+    dates_dict = {'start': [], 'end': []}
+    for company, company_group in df.groupby('staffingcustomer_companyname'):
+        s, e = [], []
+        for start, end in zip(company_group['assignment_startdate'].unique(),
+                              company_group['assignment_enddate'].unique()):
+            s.append(start)
+            e.append(end)
+        dates_dict['start'].append(s)
+        dates_dict['end'].append(e)
+    return dates_dict
+
+
+def add_total_active_assignments(df, dates_dict):
+    df.loc[:,'active_assignments'] = 0
+    for date in np.unique(df.index.values):
+        for start, end in zip(dates_dict['start'], dates_dict['end']):
+            if (s <= date <= e for s, e, in zip(start, end)):
+
+                # This may be copying and overwriting previously encountered values, because it creates a copy of
+                # the original dataframe column, consider making an independent list that gets appended to the dataframe instead.
+                df.loc[date, 'active_assignments'] += 1
+    return df
+
+
 def get_flex_groups(df, features, store_locally=False, company_split=True):
     '''
     Use this segment to make different dataframes for each flexworker available in the dataset. There should be a list
@@ -210,38 +236,6 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     df_list = []
     group_df = df.groupby(name_grouping)
 
-    new_group = df.groupby([name_grouping, company_grouping], group_keys=True).apply(lambda x: x)
-    i, cnt = 0, 0
-    for flexworker in new_group.index.unique(level=0):
-        flexworker_sheet = new_group.loc[flexworker]
-        dates_dict = {'start': [], 'end': []}
-        j = 0
-        for company in flexworker_sheet.index.unique(level=0):
-            timecard_sheets = flexworker_sheet.loc[company]
-            s, e = [], []
-            for start, end in zip(timecard_sheets['assignment_startdate'].unique(), timecard_sheets['assignment_enddate'].unique()):
-                s.append(start)
-                e.append(end)
-            dates_dict['start'].append(s)
-            dates_dict['end'].append(e)
-            flexworker_sheet['active assignments'] = 1
-        for timecardline in flexworker_sheet.index.unique():
-            timecard_sheet = flexworker_sheet.loc[timecardline]
-            for start, end in zip(dates_dict['start'], dates_dict['end']):
-                if (s <= timecardline[1] <= e for s, e, in zip(start, end)):
-                    # This may be copying and overwriting previously encountered values, because it creates a copy of
-                    # the original dataframe column, consider making an independent list that gets appended to the dataframe instead.
-                    timecard_sheet['active assignments'] += 1
-            if not (timecard_sheet['timecardline_amount'] == 0).all():
-                df_list.append(timecard_sheet[features])  # For now drop the ids, but they are needed later!
-                if store_locally: timecard_sheet.to_excel(f"../../data/edited data/workers exp/worker{i}_company{j}.xlsx")
-            i+=1
-            continue
-        print(flexworker_sheet)
-        i+=1
-        cnt+=1
-    exit()
-
     i = 0
     flexworker_collection = df[name_grouping].unique()
     cnt = 0
@@ -250,10 +244,13 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
         if len(df1[company_grouping].unique()) > 1:
             group_comp = df1.groupby(company_grouping)
             j=0
+            dates_dict = get_assignment_dates(df1)
+            df1 = add_total_active_assignments(df1, dates_dict)
             if company_split:
                 for company in df1[company_grouping].unique():
                     df2 = group_comp.get_group(company)
                     df2 = remove_double_indices(df2, cnt)
+
                     if not (df2[features[-1]] == 0).all():
                         df_list.append(df2[features])
                         if store_locally: df2.to_excel(f"../../data/edited data/workers exp/worker{i}_company{j}.xlsx")
@@ -261,6 +258,8 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
                     cnt+=1
                 i+=1
                 continue
+        dates_dict = get_assignment_dates(df1)
+        df1 = add_total_active_assignments(df1, dates_dict)
         df1 = remove_double_indices(df1, cnt)
         if not (df1[features[-1]] == 0).all():
             df_list.append(df1[features]) # For now drop the ids, but they are needed later!
@@ -299,22 +298,6 @@ def add_support_variables(df_list):
         df["amount_sum"] = df["amount_sum"].shift(-1).fillna(method='bfill')
         print(df)
         exit()
-
-        # for year in all_years:
-        #     df2 = df1.loc[year]
-        #     print(df2)
-        #     for week in all_weeks:
-        #         df3 = df2.loc[week]
-        #         hour_val = df3.iloc[0]
-        #         print(week)
-        #         print(hour_val)
-        #         '''
-        #         At this point we know the total amount for each week of each year, so the dataframe needs to be filled
-        #         in for rows up to the end of the selected week.
-        #         '''
-        # print(df1)
-        # df["amount sum"] = np.where(df["weekofyear"]==df1.index, df1["amount_sum"""])
-        # print(df)
 
 
 def convert_data(df, features, split=True, legacy=False):

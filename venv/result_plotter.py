@@ -47,7 +47,7 @@ if __name__ == '__main__':
     iteration = 11
     if len(sys.argv) > 1:
         iteration = int(sys.argv[1])
-    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}h.xlsx")
+    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}i.xlsx")
 
     print(df.head())
 

@@ -44,7 +44,7 @@ if __name__ == '__main__':
     The features considered change depending on the mode, as well as depending on the kinds of data that we want to 
     use for the forecasting of working hours.
     '''
-    if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecard_totalhours', 'timecardline_amount']
+    if mode == 1: FEATURES = ['dayofweek', 'weekofyear', 'active_assignments', 'timecard_totalhours', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
     df = read_file(connection=connection, store_locally=True)
