@@ -45,9 +45,10 @@ def plotter(df):
 
 if __name__ == '__main__':
     iteration = 11
+    version = 'b'
     if len(sys.argv) > 1:
         iteration = int(sys.argv[1])
-    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}i.xlsx")
+    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}{version}.xlsx")
 
     print(df.head())
 
@@ -68,7 +69,6 @@ if __name__ == '__main__':
           f"---------------------------------------------------------------------------------------------------\n")
 
     plotter(df)
-
 
     # sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
     #              style="assignment_flexworkerid", markers=True)

@@ -6,6 +6,9 @@ from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeural
 import sys
 from datetime import datetime
 import tensorflow as tf
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 def get_savefile_name(mode, model, features):
@@ -25,18 +28,18 @@ if __name__ == '__main__':
     '''
     mode = 1
     split = 1                       # Split the data according to employees and their individual companies they work for
-    individual = True               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
+    individual = False               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
     connection = False               # Enable if there is a connection to the Akyla database
-    general_prediction_mode = False # Controls whether the predictions will be made for each specific worker, or general
-    in_win_size = 14                 # Control how many days are used for forecasting the working hours
+    general_prediction_mode = True # Controls whether the predictions will be made for each specific worker, or general
+    in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 1                # Controls how many days in advance the
-
+    start_at = 0
     if len(sys.argv) > 1:
         mode = int(sys.argv[1])
         try:
             start_at = int(sys.argv[2])
         except Exception as e:
-            print(e)
+            print(f'Did not get start_at due to error: {e}, ignore if you are training a general prediciton model...')
 
 
 
@@ -44,7 +47,7 @@ if __name__ == '__main__':
     The features considered change depending on the mode, as well as depending on the kinds of data that we want to 
     use for the forecasting of working hours.
     '''
-    if mode == 1: FEATURES = ['dayofweek', 'weekofyear', 'active_assignments', 'timecard_totalhours', 'timecardline_amount']
+    if mode == 1: FEATURES = ['is_holiday', 'dayofweek', 'weekofyear', 'active_assignments', 'timecard_totalhours', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
     df = read_file(connection=connection, store_locally=True)
@@ -77,7 +80,7 @@ if __name__ == '__main__':
 
     if general_prediction_mode:
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
-        model = AdvLSTMNeuralNetwork(input_shape, output_shape, lstm_size=64)
+        model = AdvLSTMNeuralNetwork(input_shape, output_shape, lstm_size=128)
         model.compile()
         model.check()
 
@@ -93,9 +96,9 @@ if __name__ == '__main__':
     # Set as a means to start the training from a different index
     end_at = start_at
     dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
-
+    evaluation_mode = True
     for cnt, df_np in enumerate(df_list):
-        if cnt < start_at:continue
+        if (not general_prediction_mode) and (cnt < start_at):continue
 
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
@@ -134,7 +137,7 @@ if __name__ == '__main__':
             - Apply some generalised model for forecasting.
         '''
         try:
-            history = model.fit(x_train, y_train, x_val, y_val, 500)
+            history = model.fit(x_train, y_train, x_val, y_val, 300)
         except Exception as e:
             print(f"Exception thrown: {e}")
             continue
@@ -147,14 +150,15 @@ if __name__ == '__main__':
             print(f"train loss: {dict_individual_losses['train loss'][-1]}")
             print(f"value loss: {dict_individual_losses['value loss'][-1]}")
             print(f"test loss: {dict_individual_losses['test loss'][-1]}")
-        if cnt == end_at: break
+        if (not general_prediction_mode) and (cnt == end_at): break
 
     end = datetime.now()
     train_time = (end-start).total_seconds()                                    # Get the training time of the model
                                                                                 # from the start of the loop to finish
 
     full_name = get_savefile_name(mode, model, FEATURES)                        # Get the full name for the results
-                                                                                # to be saved
+    path = f'saved model weights/{full_name}'
+    model.save(path)
 
     if individual: store_individual_losses(dict_individual_losses, full_name, start_at)   # Store the individual loss collections
 

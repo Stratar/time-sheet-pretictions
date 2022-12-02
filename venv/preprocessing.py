@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import math
 import pandas as pd
+import holidays
+from datetime import datetime
 
 
 '''
@@ -10,27 +12,6 @@ necessary to format the data in such a way that is acceptable by most algorithms
 
 The prefix multi refers to the function's ability to handle multiple variables as input 
 '''
-
-
-def multi_scaler_legacy(df_np):
-    '''
-    The inputs to the network is best processed with small variances, therefore scaling the inputs makes sense.
-    However, the way to scale them right now relies on the last item being the variable to be predicted.
-    '''
-    if len(df_np.shape) > 1:
-        scalers = []
-        df_np = np.transpose(df_np)
-        for i in range(df_np.shape[0]):
-            scaler = MinMaxScaler()
-            df_np[i] = scaler.fit_transform(df_np[i].reshape(-1,1)).reshape(1,-1)[0]
-            scalers.append(scaler)
-        df_np = np.transpose(df_np)
-        scaler = scalers[-1]
-        del scalers
-    else:
-        scaler = MinMaxScaler()
-        df_np = scaler.fit_transform(df_np.reshape(-1, 1)).reshape(1, -1)[0]
-    return df_np, scaler
 
 
 def multi_scaler(df_list, scalers):
@@ -101,25 +82,15 @@ def train_val_split(df_np, in_win_size, out_win_size=1):
 
 
 def get_test_set_np(df_list, size=0.8, in_win_size=7):
-    print(len(df_list))
     if len(df_list) == 1:
         data_length = math.ceil(df_list[0].shape[0] * size)
         test_data = df_list[0][data_length - in_win_size:]
         df_list[0] = df_list[0][:data_length]
     elif len(df_list) > 1:
-        test_data = df_list[-1]
-        df_list = df_list[:-1]
+        test_data = df_list[-11]
+        df_list = df_list[:-11]
 
     return df_list, test_data
-
-
-def convert_and_scale_legacy(df_list):
-
-    for i in range(len(df_list)):
-        df_list[i] = df_to_np(df_list[i])
-        df_list[i], scaler = multi_scaler_legacy(df_list[i])
-
-    return df_list, scaler
 
 
 def convert_and_scale(df_list):
@@ -152,27 +123,16 @@ def create_subsets(df, features, split=-1, company_split=True):
     return df_list
 
 
-def fill_gaps(df_list, dt_inputs=False):
-    for cnt, df in enumerate(df_list):
-        if cnt < 0:
-            print(f"FILL GAPS CNT: {cnt}")
-            print(f"the size before grouping: {df.shape}")
-        cols = df.columns
-        df1 = df.drop(columns=cols[-1]).resample('1D').ffill()
-        if dt_inputs:
-            if 'dayofweek' in cols: df1['dayofweek'] = df1.index.dayofweek
-            if 'weekofyear' in cols: df1['weekofyear'] = df1.index.isocalendar().week
-            if 'dayofyear' in cols: df1['dayofyear'] = df1.index.dayofyear
-        df2 = df.drop(columns=cols[:-1]).resample('1D').mean().fillna(0)
-        df_list[cnt] = pd.concat([df1, df2], axis=1)
-        if cnt < 0: # Just to see the differences between double indices
-            print(df1.head())
-            print(df1.shape)
-            print(df2.head())
-            print(df2.shape)
-            print(f"the size after grouping: {df.shape}")
-            print("------------------------------------------")
-    return df_list
+def fill_gaps(df, dt_inputs=False):
+    cols = df.columns
+    df1 = df.drop(columns=cols[-1]).resample('1D').ffill()
+    if dt_inputs:
+        if 'dayofweek' in cols: df1['dayofweek'] = df1.index.dayofweek
+        if 'weekofyear' in cols: df1['weekofyear'] = df1.index.isocalendar().week
+        if 'dayofyear' in cols: df1['dayofyear'] = df1.index.dayofyear
+    df2 = df.drop(columns=cols[:-1]).resample('1D').mean().fillna(0)
+    df = pd.concat([df1, df2], axis=1)
+    return df
 
 
 def uniform_data_types(df_list):
@@ -213,12 +173,21 @@ def get_assignment_dates(df):
     return dates_dict
 
 
+def add_holidays(df):
+    df.loc[:,'is_holiday'] = 0
+    for date in np.unique(df.index.values):
+        edit_date = str(date)[:10]
+        edit_date = datetime.strptime(edit_date, "%Y-%m-%d").date()
+        if edit_date in holidays.NL(years=[2020, 2021, 2022]).keys(): df.loc[date, 'is_holiday'] = 1
+    return df
+
+
 def add_total_active_assignments(df, dates_dict):
     df.loc[:,'active_assignments'] = 0
     for date in np.unique(df.index.values):
+        # df = add_holidays(df, date)
         for start, end in zip(dates_dict['start'], dates_dict['end']):
             if (s <= date <= e for s, e, in zip(start, end)):
-
                 # This may be copying and overwriting previously encountered values, because it creates a copy of
                 # the original dataframe column, consider making an independent list that gets appended to the dataframe instead.
                 df.loc[date, 'active_assignments'] += 1
@@ -235,7 +204,7 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     company_grouping = "staffingcustomer_companyname"
     df_list = []
     group_df = df.groupby(name_grouping)
-
+    holiday_bool = False
     i = 0
     flexworker_collection = df[name_grouping].unique()
     cnt = 0
@@ -250,7 +219,15 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
                 for company in df1[company_grouping].unique():
                     df2 = group_comp.get_group(company)
                     df2 = remove_double_indices(df2, cnt)
-
+                    ins = ''
+                    if 'is_holiday' in features:
+                        holiday_bool = True
+                        for idx, val in enumerate(features):
+                            if val == 'is_holiday':
+                                ins = features.pop(idx)
+                    df2 = fill_gaps(df2[features], dt_inputs=True)
+                    df2 = add_holidays(df2)
+                    if holiday_bool: features.insert(0, ins)
                     if not (df2[features[-1]] == 0).all():
                         df_list.append(df2[features])
                         if store_locally: df2.to_excel(f"../../data/edited data/workers exp/worker{i}_company{j}.xlsx")
@@ -261,6 +238,14 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
         dates_dict = get_assignment_dates(df1)
         df1 = add_total_active_assignments(df1, dates_dict)
         df1 = remove_double_indices(df1, cnt)
+        if 'is_holiday' in features:
+            holiday_bool = True
+            for idx, val in enumerate(features):
+                if val == 'is_holiday':
+                    ins = features.pop(idx)
+        df1 = fill_gaps(df1[features], dt_inputs=True)
+        df1 = add_holidays(df1)
+        if holiday_bool: features.insert(0, ins)
         if not (df1[features[-1]] == 0).all():
             df_list.append(df1[features]) # For now drop the ids, but they are needed later!
             if store_locally: df1.to_excel(f"../../data/edited data/workers exp/worker{i}.xlsx")
@@ -270,34 +255,6 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     if store_locally: df_list[-1].to_excel("../../data/edited data/workers exp/worker example.xlsx")
 
     return df_list
-
-
-def add_support_variables(df_list):
-    for df in df_list:
-        print(df.head())
-        print("--------------------------")
-        df["amount_sum"] = df["timecardline_amount"].copy()
-
-
-
-        all_years = df["year"].unique()
-        all_weeks = df["weekofyear"].unique()
-
-        df1 = df.groupby(["year", "weekofyear"]).agg({k:sum if k == 'amount_sum' else 'first' for k in ["amount_sum", "weekofyear"]}).drop(["weekofyear"], axis=1)
-        print(df1)
-        idx = df[df["dayofweek"]==0].index.values[0]
-        print(idx)
-        df = df.loc[idx:,:]
-        print(df.head())
-        df4 = df.loc[:, ["amount_sum"]].rolling(7, step=7).sum()
-        # df4["amount_sum"] += hour_val
-        print("start")
-        print(df4)
-        print("done")
-        df = pd.concat([df, df4], axis=1)
-        df["amount_sum"] = df["amount_sum"].shift(-1).fillna(method='bfill')
-        print(df)
-        exit()
 
 
 def convert_data(df, features, split=True, legacy=False):
@@ -310,7 +267,7 @@ def convert_data(df, features, split=True, legacy=False):
     Grouping done over flexworkers as G. The categories within G that we're interested in, are the ones that will be 
     scaled.
     '''
-    df_list = fill_gaps(df_list, dt_inputs=True)
+    # df_list = fill_gaps_original(df_list, dt_inputs=True)
     df_list = uniform_data_types(df_list)
     if legacy: df_list, scaler = convert_and_scale_legacy(df_list)
     else: df_list, scaler = convert_and_scale(df_list)
@@ -318,6 +275,7 @@ def convert_data(df, features, split=True, legacy=False):
 
 
 def data_split(df_np, in_win_size, out_win_size, mode):
+    array_type=False
     if type(df_np) == np.ndarray: array_type=True
 
     if array_type: df_np, test_data = get_test_set_np([df_np], in_win_size=in_win_size)

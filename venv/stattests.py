@@ -81,18 +81,18 @@ def make_lineplot(df):
     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
                  style="assignment_flexworkerid", markers=True)
     plt.show()
-    try:
-        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_startdate",
-                     style="assignment_flexworkerid", markers=True)
-        plt.show()
-    except:
-        print("One worker is displayed.")
-    try:
-        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_enddate",
-                     style="assignment_flexworkerid", markers=True)
-        plt.show()
-    except:
-        print("One worker is displayed.")
+    # try:
+    #     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_startdate",
+    #                  style="assignment_flexworkerid", markers=True)
+    #     plt.show()
+    # except:
+    #     print("One worker is displayed.")
+    # try:
+    #     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_enddate",
+    #                  style="assignment_flexworkerid", markers=True)
+    #     plt.show()
+    # except:
+    #     print("One worker is displayed.")
 
 
 def general_statistics(df, cnt):
@@ -171,9 +171,10 @@ def stat_mode_initialiser(df, split=1, i=0):
     print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
     df_list = create_subsets(df, FEATURES, split=split, company_split=False)
     histogram_anova=[]
-    df_list = fill_gaps(df_list, dt_inputs=True)
+    # df_list = fill_gaps(df_list, dt_inputs=True)
     for cnt, df in enumerate(df_list):
         if cnt < i: continue
+        df = fill_gaps(df, dt_inputs=True)
         print(f"\n**********************************************\n"
               f"            Input number {cnt}:"
               f"\n**********************************************")

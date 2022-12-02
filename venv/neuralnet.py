@@ -249,8 +249,8 @@ class AdvGRUNeuralNetwork:
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=150)
-        self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru/', save_best_only=True)
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
+        self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru.h5', save_best_only=True)
 
     def compile(self):
         self.model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=self.optimizer,
@@ -273,6 +273,12 @@ class AdvGRUNeuralNetwork:
     def check(self):
         return self.model.summary()
 
+    def save(self, path):
+        self.model.save_weights(path)
+
+    def load(self, path):
+        self.model.load_weights(path)
+
 
 class AdvLSTMNeuralNetwork:
 
@@ -286,15 +292,16 @@ class AdvLSTMNeuralNetwork:
         self.model._name = "AdvLSTM"
         self.name = self.model._name
         self.model.add(tf.keras.layers.InputLayer(in_shape))
-        self.model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(lstm_size, dropout=0.2, recurrent_dropout=0.2)))
-        self.model.add(tf.keras.layers.RepeatVector(out_shape[0]))
-        self.model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(lstm_size, dropout=0.2, recurrent_dropout=0.2,
-                                                                         return_sequences=True)))
+        for i in range(n_layers-1):
+            self.model.add(tf.keras.layers.LSTM(lstm_size, dropout=0.2, recurrent_dropout=0))
+            self.model.add(tf.keras.layers.RepeatVector(out_shape[0]))
+        self.model.add(tf.keras.layers.LSTM(lstm_size, dropout=0.2, recurrent_dropout=0,
+                                                                         return_sequences=True))
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
         self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=25)
-        self.cp = tf.keras.callbacks.ModelCheckpoint('model_advlstm/', save_best_only=False)
+        self.cp = tf.keras.callbacks.ModelCheckpoint('model_advlstm.h5', save_best_only=False)
 
     def compile(self):
         self.model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=self.optimizer,
@@ -316,6 +323,12 @@ class AdvLSTMNeuralNetwork:
 
     def check(self):
         return self.model.summary()
+
+    def save(self, path):
+        self.model.save_weights(path)
+
+    def load(self, path):
+        self.model.load_weights(path)
 
 
 class ConvLSTMNeuralNetwork:
