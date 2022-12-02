@@ -87,8 +87,8 @@ def get_test_set_np(df_list, size=0.8, in_win_size=7):
         test_data = df_list[0][data_length - in_win_size:]
         df_list[0] = df_list[0][:data_length]
     elif len(df_list) > 1:
-        test_data = df_list[-11]
-        df_list = df_list[:-11]
+        test_data = df_list[-1]
+        df_list = df_list[:-1]
 
     return df_list, test_data
 

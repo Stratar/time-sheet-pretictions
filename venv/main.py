@@ -66,6 +66,8 @@ if __name__ == '__main__':
     The data is then converted from a pandas dataframe into a numpy array and scaled between 0 and 1.     
     '''
     df_list, scalers = convert_data(df, FEATURES, split)
+    # The last 10 timecards are useless, so remove them
+    df_list = df_list[:-11]
 
     '''
     This method is currently trying to create a generalised model that trains and evaluates the model after each
@@ -97,8 +99,26 @@ if __name__ == '__main__':
     end_at = start_at
     dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
     evaluation_mode = True
+    transfer_learning = False
+    load_model = True
+    full_name = get_savefile_name(mode, model, FEATURES)                        # Get the full name for the results
+    path = f'saved model weights/{full_name}'
+    if load_model:
+        '''
+        Get the generalised model, that's been trained on previously encountered data and extend it with a GRU layer
+        for better predictions for the personalised model with few inputs. 
+        '''
+        model.load(path)
+        model.trainable = False
+        if transfer_learning:
+            extended_model = model(training=False)
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=128)(extended_model)
+
     for cnt, df_np in enumerate(df_list):
+        continue
         if (not general_prediction_mode) and (cnt < start_at):continue
+        print('the size is: ', df_np.size)
+        if df_np.size < 30: continue # If the input if too small, there is no point training on it
 
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
@@ -137,7 +157,7 @@ if __name__ == '__main__':
             - Apply some generalised model for forecasting.
         '''
         try:
-            history = model.fit(x_train, y_train, x_val, y_val, 300)
+            history = model.fit(x_train, y_train, x_val, y_val, 100)
         except Exception as e:
             print(f"Exception thrown: {e}")
             continue
@@ -155,14 +175,11 @@ if __name__ == '__main__':
     end = datetime.now()
     train_time = (end-start).total_seconds()                                    # Get the training time of the model
                                                                                 # from the start of the loop to finish
-
-    full_name = get_savefile_name(mode, model, FEATURES)                        # Get the full name for the results
-    path = f'saved model weights/{full_name}'
     model.save(path)
 
     if individual: store_individual_losses(dict_individual_losses, full_name, start_at)   # Store the individual loss collections
 
-    plot_history(history)
+    # plot_history(history)
 
     hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
 

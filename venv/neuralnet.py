@@ -299,19 +299,19 @@ class AdvLSTMNeuralNetwork:
                                                                          return_sequences=True))
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
-
+        # val_loss cannot be found in early stopping condition, it only detects the metrics
         self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=25)
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_advlstm.h5', save_best_only=False)
 
     def compile(self):
         self.model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=self.optimizer,
                                                         metrics=[tf.keras.metrics.RootMeanSquaredError(),
-                                                        tf.keras.metrics.KLDivergence(), tf.keras.metrics.Accuracy()])
+                                                        tf.keras.metrics.KLDivergence()])
 
     def fit(self, x, y, x_val, y_val, epochs=100):
         self.epochs = epochs
         history = self.model.fit(x, y, shuffle=False, validation_data=[x_val, y_val], epochs=epochs,
-                                 callbacks=[self.cp, self.early_stop])
+                                 callbacks=[self.cp, self.early_stop]) # Remove the LR reducer if need be
         return history
 
     def evaluate(self, x, y):
