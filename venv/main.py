@@ -1,3 +1,4 @@
+import numpy as np
 from file_reader import read_file
 from stattests import stat_mode_initialiser
 from rnn import store_results, plot_history, run_and_plot_predictions, store_individual_losses
@@ -9,15 +10,35 @@ import tensorflow as tf
 import warnings
 
 warnings.filterwarnings("ignore")
+'''
+TODO:
+* Visualise the results better, so that you can tell what the previous weeks vs the predicted week are.
+store the training values in a dictionary of dates
+Fix the scaler for each training, make sure the right scaler is used for the right scenario. Could make a
+multi-dimensional array for the scaler storage. 
+Check individual trainings to see how scaling back works
+
+* Convert Pandas data handling to postgres, minimise pandas operations
+EMAIL FOR HELP BUILDING DATABASE IN POSTGRES
+
+* Finish up transfer learning parallel instead of sequential models (Check how to give the inputs)
+Difference between keras Input and keras InputLayer? 
+tf.keras.Input shows odd output shape in model summary, but it connects properly to the model (Tensor type)
+tf.keras.InputLayer has okay output shape, but does not connect properly to model (Layer type)
+There may be an issue with loading and saving the model. Trying saving weights instead and loading them into the model.
+This presented some issues in the past, but loading the full model doesn't work either. 
+This works now, but there is no GRU connection, but only regular dense layers appended in the end.
+'''
 
 
-def get_savefile_name(mode, model, features):
+def get_savefile_name(mode, model_name, features, transfer_learning=False):
     mode_name = ''
     if mode == 1: mode_name = 'multivariate_'
     else: mode_name = 'univariate_'
-    model_name = model.name + "_"
+    if transfer_learning: model_name = "AdvLSTM_"
+    else: model_name = model_name + "_"
     target_name = "timecardline_amount"
-    full_name = mode_name+model_name+target_name
+    full_name = mode_name+model_name+target_name + '.h5'
     return full_name
 
 
@@ -32,14 +53,15 @@ if __name__ == '__main__':
     connection = False               # Enable if there is a connection to the Akyla database
     general_prediction_mode = True # Controls whether the predictions will be made for each specific worker, or general
     in_win_size = 14                # Control how many days are used for forecasting the working hours
-    out_win_size = 1                # Controls how many days in advance the
+    out_win_size = 7                # Controls how many days in advance the
     start_at = 0
     if len(sys.argv) > 1:
         mode = int(sys.argv[1])
         try:
             start_at = int(sys.argv[2])
         except Exception as e:
-            print(f'Did not get start_at due to error: {e}, ignore if you are training a general prediciton model...')
+            print(f'Did not get start_at due to error: {e}\n'
+                  f'Ignore if you are training a general prediciton model... No starting position was provided.')
 
 
 
@@ -67,7 +89,7 @@ if __name__ == '__main__':
     '''
     df_list, scalers = convert_data(df, FEATURES, split)
     # The last 10 timecards are useless, so remove them
-    df_list = df_list[:-11]
+    df_list = df_list[:-13]
 
     '''
     This method is currently trying to create a generalised model that trains and evaluates the model after each
@@ -82,7 +104,7 @@ if __name__ == '__main__':
 
     if general_prediction_mode:
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
-        model = AdvLSTMNeuralNetwork(input_shape, output_shape, lstm_size=128)
+        model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=16, lstm_size=128)
         model.compile()
         model.check()
 
@@ -98,24 +120,44 @@ if __name__ == '__main__':
     # Set as a means to start the training from a different index
     end_at = start_at
     dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
-    evaluation_mode = True
+    evaluation_mode = False
     transfer_learning = False
-    load_model = True
-    full_name = get_savefile_name(mode, model, FEATURES)                        # Get the full name for the results
-    path = f'saved model weights/{full_name}'
+    load_model = False
     if load_model:
+        full_name = get_savefile_name(mode, '', FEATURES, transfer_learning=transfer_learning) # Get the full name for the results
+        path = f'saved model weights/{full_name}'
         '''
         Get the generalised model, that's been trained on previously encountered data and extend it with a GRU layer
         for better predictions for the personalised model with few inputs. 
         '''
-        model.load(path)
-        model.trainable = False
+        base_model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=16, lstm_size=128)
+        base_model.load(path)
         if transfer_learning:
-            extended_model = model(training=False)
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=128)(extended_model)
+            '''
+            Instead of adding the pre-made GRU network, make a new class that connects to the end of the generalised
+            LSTM network.
+            '''
+            base_model.disable_training()
+            # model_pers = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=10, gru_size=128)
+            # model_pers.compile()
+            # concatenated_output_layer = tf.keras.layers.concatenate([model_base.output, model_pers.get_model().output], name="concatenated_out_layer")
+
+
+            # model.build(input_shape=(None, 14, 6))
+            model = tf.keras.models.Sequential([
+                base_model.get_model(),
+            tf.keras.layers.Dense(input_shape[1], name=f'RepeatVector_mix'),
+            tf.keras.layers.Dense(output_shape[1], name='output_mix')
+            ])
+            model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                                                        metrics=[tf.keras.metrics.RootMeanSquaredError(),
+                                                        tf.keras.metrics.KLDivergence()])
+
+            model.build(input_shape=(None, 14, 6))
+            print(model.summary())
 
     for cnt, df_np in enumerate(df_list):
-        continue
+        if evaluation_mode: continue
         if (not general_prediction_mode) and (cnt < start_at):continue
         print('the size is: ', df_np.size)
         if df_np.size < 30: continue # If the input if too small, there is no point training on it
@@ -125,9 +167,10 @@ if __name__ == '__main__':
         each flexworker, without impacting bias from other cases. Individual models should be trained and
         SAVED separately.
         '''
-        if not general_prediction_mode:
+        if (not general_prediction_mode) and not transfer_learning:
+            print("Create a new GRU model")
             # Pass an argument for saving each model separately
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=128)
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=8, gru_size=128)
             model.compile()
             model.check()
 
@@ -157,9 +200,16 @@ if __name__ == '__main__':
             - Apply some generalised model for forecasting.
         '''
         try:
-            history = model.fit(x_train, y_train, x_val, y_val, 100)
+            print(type(x_train))
+            print(x_train.shape)
+            history = model.fit(x_train, y_train, x_val, y_val, 500)
+            # early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
+            # cp = tf.keras.callbacks.ModelCheckpoint('model_advgru.h5', save_best_only=True)
+            # history = model.fit(x_train, y_train, shuffle=False, validation_data=[x_val, y_val], epochs=800,
+            #                          callbacks=[cp, early_stop])
         except Exception as e:
-            print(f"Exception thrown: {e}")
+            print(f"Exception thrown when trying to fit: {e}")
+
             continue
 
         if individual:
@@ -174,16 +224,20 @@ if __name__ == '__main__':
 
     end = datetime.now()
     train_time = (end-start).total_seconds()                                    # Get the training time of the model
-                                                                                # from the start of the loop to finish
-    model.save(path)
+
+    if not load_model:
+        full_name = get_savefile_name(mode, model.name, FEATURES)  # Get the full name for the results
+        path = f'saved model weights/{full_name}'
+        # from the start of the loop to finish
+        model.save(path)
 
     if individual: store_individual_losses(dict_individual_losses, full_name, start_at)   # Store the individual loss collections
 
-    # plot_history(history)
-
+    if not evaluation_mode: plot_history(history)
+    if evaluation_mode: x_train, y_train = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
     hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
 
     if not individual: df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test,
                                                                         y_test, scalers[-1])
 
-    store_results(hp, result_values, df_res, full_name, start_at)
+    store_results(hp, result_values, df_res, full_name[:-3], start_at)

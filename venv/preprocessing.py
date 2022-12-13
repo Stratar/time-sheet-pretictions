@@ -23,7 +23,7 @@ def multi_scaler(df_list, scalers):
         if len(df_np.shape) > 1:
             df_np = np.transpose(df_np)
             for i, scaler in enumerate(scalers):
-                df_np[i] = scaler.fit_transform(df_np[i].reshape(-1,1)).reshape(1,-1)[0]
+                df_np[i] = scaler.transform(df_np[i].reshape(-1,1)).reshape(1,-1)[0]
             df_np = np.transpose(df_np)
         else:
             scaler = MinMaxScaler()
@@ -101,6 +101,13 @@ def convert_and_scale(df_list):
             category_dict[category].append((df_to_np(df_list[i][category])))
         df_list[i] = df_to_np(df_list[i])
     scalers = []
+    '''
+    The ideal structure of scalers that we're going for is: 
+    List of scalers per timesheet in list ->[ 
+    List of the corresponding variable scalers from current timesheet ->[
+    
+    ]]
+    '''
     for category in categories:
         scaler = MinMaxScaler()
         # This is equivalent to doing the reshape(-1, 1) in np.ndarray, but that can handle up to 32 dims, so it crashes
