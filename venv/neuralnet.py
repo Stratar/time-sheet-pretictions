@@ -189,24 +189,32 @@ class AdvGRUNeuralNetwork:
         return self.model
 
 
-class RefiningGRUNeuralNetwork:
+class TransferNeuralNetwork:
 
-    def __init__(self, in_shape, out_shape, n_layers=3, gru_size=32, hid_size=4, lr=1e-4):
+    def __init__(self, in_shape, out_shape, path, n_layers=3, lstm_size=32, hid_size=4, lr=1e-4):
         self.n_layers = n_layers
-        self.layer_size = gru_size
+        self.layer_size = lstm_size
         self.hid_size = hid_size
         self.lr = lr
         self.epochs = 1
-        self.model = tf.keras.Sequential()
-        self.model._name = "AdvGRU"
+
+        self.base_model = AdvLSTMNeuralNetwork(in_shape, out_shape, n_layers=n_layers, lstm_size=lstm_size)
+        self.base_model.get_model().load_weights(path)
+        '''
+        Instead of adding the pre-made GRU network, make a new class that connects to the end of the generalised
+        LSTM network.
+        '''
+        self.base_model.disable_training()
+
+        self.model = tf.keras.models.Sequential([
+            self.base_model.get_model(),
+            tf.keras.layers.GRU(lstm_size, dropout=0.2, recurrent_dropout=0,
+                                return_sequences=False, name='Trans_GRU'),
+            tf.keras.layers.Dense(out_shape[1], activation='sigmoid', name='Trans_output')
+        ])
+
+        self.model._name = "TansferModel"
         self.name = self.model._name
-        self.model.add(tf.keras.layers.InputLayer(in_shape, name='GRU_Input'))
-        for i in range(n_layers-1):
-            self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0))
-            self.model.add(tf.keras.layers.RepeatVector(out_shape[0], name=f'GRU_RepeatVector_{i}'))
-        self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0,
-                                                                         return_sequences=True))
-        self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid'), name='GRU_Output'))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
         self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
@@ -216,6 +224,9 @@ class RefiningGRUNeuralNetwork:
         self.model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=self.optimizer,
                                                         metrics=[tf.keras.metrics.RootMeanSquaredError(),
                                                         tf.keras.metrics.KLDivergence()])
+
+    def build(self):
+        self.model.build(input_shape=(None, 14, 6))
 
     def fit(self, x, y, x_val, y_val, epochs=100):
         self.epochs = epochs

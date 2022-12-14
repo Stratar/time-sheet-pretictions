@@ -84,8 +84,8 @@ if __name__ == '__main__':
     version = 'd'
     if len(sys.argv) > 1:
         iteration = int(sys.argv[1])
-    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}{version}.xlsx")
-    # df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvLSTM_timecardline_amount/{iteration}{version}.xlsx")
+    # df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}{version}.xlsx")
+    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvLSTM_timecardline_amount/{iteration}{version}.xlsx")
 
     print(df.head())
 

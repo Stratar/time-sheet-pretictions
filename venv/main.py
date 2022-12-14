@@ -3,7 +3,7 @@ from file_reader import read_file
 from stattests import stat_mode_initialiser
 from rnn import store_results, plot_history, run_and_plot_predictions, store_individual_losses
 from preprocessing import *
-from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork
+from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork, TransferNeuralNetwork
 import sys
 from datetime import datetime
 import tensorflow as tf
@@ -17,6 +17,7 @@ store the training values in a dictionary of dates
 Fix the scaler for each training, make sure the right scaler is used for the right scenario. Could make a
 multi-dimensional array for the scaler storage. 
 Check individual trainings to see how scaling back works
+Add the dates to the final export 
 
 * Convert Pandas data handling to postgres, minimise pandas operations
 EMAIL FOR HELP BUILDING DATABASE IN POSTGRES
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     split = 1                       # Split the data according to employees and their individual companies they work for
     individual = False               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
     connection = False               # Enable if there is a connection to the Akyla database
-    general_prediction_mode = True # Controls whether the predictions will be made for each specific worker, or general
+    general_prediction_mode = False # Controls whether the predictions will be made for each specific worker, or general
     in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 7                # Controls how many days in advance the
     start_at = 0
@@ -72,7 +73,7 @@ if __name__ == '__main__':
     if mode == 1: FEATURES = ['is_holiday', 'dayofweek', 'weekofyear', 'active_assignments', 'timecard_totalhours', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
-    df = read_file(connection=connection, store_locally=True)
+    df = read_file(connection=connection, store_locally=False)
 
     # Takes the stat analysis path instead of trying to predict and train.
     if mode==2: stat_mode_initialiser(df, split, start_at)
@@ -103,6 +104,9 @@ if __name__ == '__main__':
     output_shape = (out_win_size, 1) # The second value reflects how many different variables will be predicted
 
     if general_prediction_mode:
+        '''
+        Could add scaling here instead for the whole dataset, as that produces off scalings
+        '''
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
         model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=16, lstm_size=128)
         model.compile()
@@ -121,42 +125,22 @@ if __name__ == '__main__':
     end_at = start_at
     dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
     evaluation_mode = False
-    transfer_learning = False
-    load_model = False
-    if load_model:
+    load_model = True
+    transfer_learning = True
+    if load_model and transfer_learning:
         full_name = get_savefile_name(mode, '', FEATURES, transfer_learning=transfer_learning) # Get the full name for the results
         path = f'saved model weights/{full_name}'
         '''
         Get the generalised model, that's been trained on previously encountered data and extend it with a GRU layer
         for better predictions for the personalised model with few inputs. 
         '''
-        base_model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=16, lstm_size=128)
-        base_model.load(path)
-        if transfer_learning:
-            '''
-            Instead of adding the pre-made GRU network, make a new class that connects to the end of the generalised
-            LSTM network.
-            '''
-            base_model.disable_training()
-            # model_pers = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=10, gru_size=128)
-            # model_pers.compile()
-            # concatenated_output_layer = tf.keras.layers.concatenate([model_base.output, model_pers.get_model().output], name="concatenated_out_layer")
-
-
-            # model.build(input_shape=(None, 14, 6))
-            model = tf.keras.models.Sequential([
-                base_model.get_model(),
-            tf.keras.layers.Dense(input_shape[1], name=f'RepeatVector_mix'),
-            tf.keras.layers.Dense(output_shape[1], name='output_mix')
-            ])
-            model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                                                        metrics=[tf.keras.metrics.RootMeanSquaredError(),
-                                                        tf.keras.metrics.KLDivergence()])
-
-            model.build(input_shape=(None, 14, 6))
-            print(model.summary())
+        model = TransferNeuralNetwork(input_shape, output_shape, path, n_layers=16, lstm_size=128)
+        model.compile()
+        model.build()
+        model.check()
 
     for cnt, df_np in enumerate(df_list):
+
         if evaluation_mode: continue
         if (not general_prediction_mode) and (cnt < start_at):continue
         print('the size is: ', df_np.size)
@@ -203,13 +187,8 @@ if __name__ == '__main__':
             print(type(x_train))
             print(x_train.shape)
             history = model.fit(x_train, y_train, x_val, y_val, 500)
-            # early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
-            # cp = tf.keras.callbacks.ModelCheckpoint('model_advgru.h5', save_best_only=True)
-            # history = model.fit(x_train, y_train, shuffle=False, validation_data=[x_val, y_val], epochs=800,
-            #                          callbacks=[cp, early_stop])
         except Exception as e:
             print(f"Exception thrown when trying to fit: {e}")
-
             continue
 
         if individual:
