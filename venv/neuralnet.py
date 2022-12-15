@@ -206,12 +206,15 @@ class TransferNeuralNetwork:
         '''
         self.base_model.disable_training()
 
-        self.model = tf.keras.models.Sequential([
-            self.base_model.get_model(),
-            tf.keras.layers.GRU(lstm_size, dropout=0.2, recurrent_dropout=0,
-                                return_sequences=False, name='Trans_GRU'),
-            tf.keras.layers.Dense(out_shape[1], activation='sigmoid', name='Trans_output')
-        ])
+        self.model = tf.keras.models.Sequential()
+        self.model.add(self.base_model.get_model())
+        for i in range(n_layers - 1):
+            self.model.add(tf.keras.layers.GRU(lstm_size, dropout=0.2, recurrent_dropout=0))
+            self.model.add(tf.keras.layers.RepeatVector(out_shape[0], name=f'Trans_RepeatVector_{i}'))
+        self.model.add(tf.keras.layers.GRU(lstm_size, dropout=0.2, recurrent_dropout=0,
+                                return_sequences=True, name='Trans_GRU'))
+        self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid', name='Trans_output')))
+        # self.model.add()
 
         self.model._name = "TansferModel"
         self.name = self.model._name

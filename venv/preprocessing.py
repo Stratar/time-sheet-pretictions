@@ -14,6 +14,21 @@ The prefix multi refers to the function's ability to handle multiple variables a
 '''
 
 
+def data_scaler(data_list):
+    scalers = []
+    for df_np in data_list:
+        individual_scalers = []
+        df_np = np.transpose(df_np)
+        for i, column in enumerate(df_np):
+            scaler = MinMaxScaler()
+            original_shape = df_np[i].shape
+            df_np[i] = scaler.fit_transform(df_np[i].reshape((-1,1))).reshape(original_shape)
+            individual_scalers.append(scaler)
+        scalers.append(individual_scalers)
+        df_np = np.transpose(df_np)
+    return data_list[0], data_list[1], data_list[2], data_list[3], data_list[4], data_list[5], scalers
+
+
 def multi_scaler(df_list, scalers):
     '''
     The inputs to the network is best processed with small variances, therefore scaling the inputs makes sense.
@@ -100,7 +115,7 @@ def convert_and_scale(df_list):
         for category in categories:
             category_dict[category].append((df_to_np(df_list[i][category])))
         df_list[i] = df_to_np(df_list[i])
-    scalers = []
+
     '''
     The ideal structure of scalers that we're going for is: 
     List of scalers per timesheet in list ->[ 
@@ -108,13 +123,17 @@ def convert_and_scale(df_list):
     
     ]]
     '''
-    for category in categories:
-        scaler = MinMaxScaler()
-        # This is equivalent to doing the reshape(-1, 1) in np.ndarray, but that can handle up to 32 dims, so it crashes
-        flat = [[item] for sublist in category_dict[category] for item in sublist]
-        scalers.append(scaler.fit(flat))
 
-    df_list = multi_scaler(df_list, scalers)
+    scalers = []
+    disable = True
+    if not disable:
+        for category in categories:
+            scaler = MinMaxScaler()
+            # This is equivalent to doing the reshape(-1, 1) in np.ndarray, but that can handle up to 32 dims, so it crashes
+            flat = [[item] for sublist in category_dict[category] for item in sublist]
+            scalers.append(scaler.fit(flat))
+
+        df_list = multi_scaler(df_list, scalers)
 
     return df_list, scalers
 

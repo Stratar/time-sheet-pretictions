@@ -11,11 +11,11 @@ def bar_plotter(df):
     print(df)
     plt.style.use('seaborn')
     plt.rcParams['axes.grid'] = True
-    train_predictions = df.iloc[:, -6]
+    train_predictions = df.iloc[:, -6].apply(lambda x:x*2).round().apply(lambda x:x/2)
     train_actuals = df.iloc[:, -5][~np.isnan(df.iloc[:, -5])]
-    val_predictions = df.iloc[:, -4][~np.isnan(df.iloc[:, -4])]
+    val_predictions = df.iloc[:, -4][~np.isnan(df.iloc[:, -4])].apply(lambda x:x*2).round().apply(lambda x:x/2)
     val_actuals = df.iloc[:, -3][~np.isnan(df.iloc[:, -3])]
-    test_predictions = df.iloc[:, -2][~np.isnan(df.iloc[:, -2])]
+    test_predictions = df.iloc[:, -2][~np.isnan(df.iloc[:, -2])].apply(lambda x:x*2).round().apply(lambda x:x/2)
     test_actuals = df.iloc[:, -1][~np.isnan(df.iloc[:, -1])]
     days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     test_predictions = test_predictions.values.reshape(-1,7)
@@ -44,22 +44,22 @@ def bar_plotter(df):
 
 
 def plotter(df):
-    train_predictions = df.iloc[:, -6]
+    train_predictions = df.iloc[:, -6].apply(lambda x:x*2).round().apply(lambda x:x/2)
     train_actuals = df.iloc[:, -5][~np.isnan(df.iloc[:, -5])]
-    val_predictions = df.iloc[:, -4][~np.isnan(df.iloc[:, -4])]
+    val_predictions = df.iloc[:, -4][~np.isnan(df.iloc[:, -4])].apply(lambda x:x*2).round().apply(lambda x:x/2)
     val_actuals = df.iloc[:, -3][~np.isnan(df.iloc[:, -3])]
-    test_predictions = df.iloc[:, -2][~np.isnan(df.iloc[:, -2])]
+    test_predictions = df.iloc[:, -2][~np.isnan(df.iloc[:, -2])].apply(lambda x:x*2).round().apply(lambda x:x/2)
     test_actuals = df.iloc[:, -1][~np.isnan(df.iloc[:, -1])]
     plt.style.use('seaborn')
     plt.rcParams['axes.grid'] = True
     figure, axis = plt.subplots(5, sharex=True, sharey=True)
-    axis[0].plot(np.arange(len(train_predictions)), train_predictions.round(), label="Predictions")
+    axis[0].plot(np.arange(len(train_predictions)), train_predictions, label="Predictions")
     axis[0].plot(np.arange(len(train_actuals)), train_actuals, label="Actuals")
     axis[0].title.set_text('Train Run')
-    axis[1].plot(np.arange(len(val_predictions)), val_predictions.round(), label="Predictions")
+    axis[1].plot(np.arange(len(val_predictions)), val_predictions, label="Predictions")
     axis[1].plot(np.arange(len(val_actuals)), val_actuals, label="Actuals")
     axis[1].title.set_text('Value Run')
-    axis[2].plot(np.arange(len(test_predictions)), test_predictions.round(), label="Predictions")
+    axis[2].plot(np.arange(len(test_predictions)), test_predictions, label="Predictions")
     axis[2].plot(np.arange(len(test_actuals)), test_actuals, label="Actuals")
     axis[2].title.set_text('Test Run')
     axis[3].fill_between(np.arange(len(train_predictions)), train_predictions.round(), train_actuals)
@@ -81,11 +81,11 @@ def plotter(df):
 
 if __name__ == '__main__':
     iteration = 11
-    version = 'd'
+    version = 'v'
     if len(sys.argv) > 1:
         iteration = int(sys.argv[1])
-    # df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}{version}.xlsx")
-    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvLSTM_timecardline_amount/{iteration}{version}.xlsx")
+    df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}{version}.xlsx")
+    # df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvLSTM_timecardline_amount/{iteration}{version}.xlsx")
 
     print(df.head())
 
@@ -105,7 +105,7 @@ if __name__ == '__main__':
           f"|*time: {round(time/60, 2)} mins\t|*learning rate: {lr}\t|\n"
           f"---------------------------------------------------------------------------------------------------\n")
 
-    plotter(df)
-    # bar_plotter(df)
+    # plotter(df)
+    bar_plotter(df)
     # sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
     #              style="assignment_flexworkerid", markers=True)

@@ -28,20 +28,6 @@ def scale_data(d):
 from sklearn.metrics import mean_squared_error as mse
 
 
-def predict(model, X):
-    predictions = []
-    for _ in range(10):
-        if len(predictions) == 0:
-            predictions = model.predict(X).flatten()
-        else:
-            new_prediction = model.predict(X)
-            predictions = [x + y for x, y in zip(predictions, new_prediction.flatten())]
-        # df = pd.DataFrame(data={'Predictions':predictions, 'Actuals':y})
-    '''This line aligns the model predictions better with the actual data'''
-    predictions = np.delete(np.roll(np.array(predictions) / 10, -1), -1)
-    return predictions
-
-
 def res_dataframe(res, y):
     df = pd.DataFrame(columns=['Predictions', 'Actuals'])
     df['Predictions'] = res
@@ -49,14 +35,24 @@ def res_dataframe(res, y):
     return df
 
 
-def plot_predictions(model, X, y, scaler, start=0, end=150, show_plots=False):
-
-    predictions = scaler.inverse_transform(model.predict(X).reshape(-1,1)).reshape(1,-1)[0]
-    # predictions = scaler.inverse_transform(predict(model, X).reshape(-1,1)).reshape(1,-1)[0]
-    # predictions = model.predict(X).reshape(1,-1)[0]
-    # y = scaler.inverse_transform(np.array(y).reshape(-1,1)).flatten()[:-1]
-    y = scaler.inverse_transform(np.array(y).reshape(-1,1)).flatten()
-    # y = np.array(y).reshape(1,-1)[0]
+def plot_predictions(model, X, y, scalers, start=0, end=150, show_plots=True):
+    print(f'Raw predictions: {model.predict(X)}\n------------------------------------\n')
+    print(f'Raw labels: {y}\n------------------------------------\n')
+    df = res_dataframe(model.predict(X).flatten(), y.flatten())
+    if show_plots:
+        plt.plot(df['Predictions'][start:end])
+        plt.plot(df['Actuals'][start:end])
+        plt.title('Predictions vs Actuals')
+        plt.ylabel('value')
+        plt.xlabel('epoch')
+        plt.legend(['Predictions', 'Actuals'], loc='upper left')
+        plt.grid()
+        plt.show()
+    y = scalers[-1][-1].inverse_transform(np.array(y).reshape(-1,1)).flatten()
+    print(f'Scaled labels: {y}\n------------------------------------\n')
+    # Scaling the predictions seems problematic
+    predictions = scalers[-1][-1].inverse_transform(model.predict(X).reshape(-1,1)).flatten() # Try to scale with x scaler
+    print(f'Scaled predictions: {predictions}')
     df = res_dataframe(predictions, y)
     if show_plots:
         plt.plot(df['Predictions'][start:end])
@@ -110,7 +106,7 @@ def store_results(hyperparams, history, results, full_name, iteration_number):
     df = pd.concat([df, results], axis=1)
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
-    df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}d.xlsx")
+    df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}v.xlsx")
 
 
 def store_individual_losses(dict_individual_losses, full_name, iteration_number):
@@ -120,16 +116,16 @@ def store_individual_losses(dict_individual_losses, full_name, iteration_number)
     df_iterative["test mean"] = df_iterative["test loss"].mean()
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
-    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses {iteration_number}d.xlsx")
+    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses {iteration_number}v.xlsx")
 
 
-def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler):
+def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers):
 
-    res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
+    res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scalers[0:2])
     print(mse_train, kl_train, rmse_train, mae_train)
-    res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
+    res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scalers[2:4])
     print(mse_val, kl_val, rmse_val, mae_val)
-    res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
+    res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scalers[4:])
     print(mse_test, kl_test, rmse_test, mae_test)
 
     df_res = pd.concat([res_train, res_val, res_test], axis=1)

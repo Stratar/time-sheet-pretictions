@@ -15,20 +15,24 @@ TODO:
 * Visualise the results better, so that you can tell what the previous weeks vs the predicted week are.
 store the training values in a dictionary of dates
 Fix the scaler for each training, make sure the right scaler is used for the right scenario. Could make a
-multi-dimensional array for the scaler storage. 
+multi-dimensional array for the scaler storage. Scaled values need to be converted back to original shape after
+conversion. Scaled prediction values are not wrong, the model simply messes up in its predictions
 Check individual trainings to see how scaling back works
 Add the dates to the final export 
 
 * Convert Pandas data handling to postgres, minimise pandas operations
+Follow tutorials on basic handling. 
+Figure out resampling
+adding complex columns based on existing columns
 EMAIL FOR HELP BUILDING DATABASE IN POSTGRES
+Hard to send queries with unknowns 
+Hard to resample and fill in empty data
 
-* Finish up transfer learning parallel instead of sequential models (Check how to give the inputs)
-Difference between keras Input and keras InputLayer? 
-tf.keras.Input shows odd output shape in model summary, but it connects properly to the model (Tensor type)
-tf.keras.InputLayer has okay output shape, but does not connect properly to model (Layer type)
-There may be an issue with loading and saving the model. Trying saving weights instead and loading them into the model.
-This presented some issues in the past, but loading the full model doesn't work either. 
-This works now, but there is no GRU connection, but only regular dense layers appended in the end.
+* Experiment for better predictions:
+    - Batch sizes
+    - Layers (Too many layers may be counter-productive): 3 are okay
+    - Nodes: 1000 performs more or less the same as 800
+    - Learning Rates
 '''
 
 
@@ -56,6 +60,7 @@ if __name__ == '__main__':
     in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 7                # Controls how many days in advance the
     start_at = 0
+
     if len(sys.argv) > 1:
         mode = int(sys.argv[1])
         try:
@@ -101,12 +106,12 @@ if __name__ == '__main__':
     This creates several models trained per employee, where personalised predictions can be made. 
     '''
     input_shape = (in_win_size, len(FEATURES))
-    output_shape = (out_win_size, 1) # The second value reflects how many different variables will be predicted
-
+    output_shape = (out_win_size, 1) # The second value reflects how many different variables will be predicted]
     if general_prediction_mode:
         '''
         Could add scaling here instead for the whole dataset, as that produces off scalings
         '''
+
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
         model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=16, lstm_size=128)
         model.compile()
@@ -123,10 +128,10 @@ if __name__ == '__main__':
     #11, 18, 20, 21, 29, 33, 34, 36, 38, 53, 76, 79, 80, 87, 88, 93, 99, 106, 118, 119
     # Set as a means to start the training from a different index
     end_at = start_at
-    dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
+    dict_individual_losses = {"train loss": [], "value loss": [], "test loss": []}
     evaluation_mode = False
-    load_model = True
-    transfer_learning = True
+    load_model = False
+    transfer_learning = False
     if load_model and transfer_learning:
         full_name = get_savefile_name(mode, '', FEATURES, transfer_learning=transfer_learning) # Get the full name for the results
         path = f'saved model weights/{full_name}'
@@ -154,7 +159,7 @@ if __name__ == '__main__':
         if (not general_prediction_mode) and not transfer_learning:
             print("Create a new GRU model")
             # Pass an argument for saving each model separately
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=8, gru_size=128)
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=1200) #128 okay
             model.compile()
             model.check()
 
@@ -163,17 +168,15 @@ if __name__ == '__main__':
               f"\n********************************************************************************************")
 
         if not general_prediction_mode:
-            print(f"full length: {len(df_np)}")
+            # Scale each of the data here and add them to a list of scalers to de-scale when needed
             df_np, x_test, y_test, x_val, y_val = data_split(df_np, in_win_size, out_win_size, mode)
-            print(f"split lens:\n"
-                  f"df_np: {len(df_np)}\n"
-                  f"x_test: {len(x_test)}\n"
-                  f"x_val: {len(x_val)}\n"
-                  f"total: {len(df_np)+len(x_test)+len(x_val)}")
 
         if mode == 0: x_train, y_train = partition_dataset(df_np, in_win_size, out_win_size)
 
         elif mode == 1: x_train, y_train = multi_partition_dataset(df_np, in_win_size, out_win_size)
+
+        # scaler is useful to see the original data again after
+        x_train, y_train, x_val, y_val, x_test, y_test, scalers = data_scaler([x_train, y_train, x_val, y_val, x_test, y_test])
 
         '''
         There are cases where the model fit receives empty inputs, therefore cannot properly proceed and should thus be
@@ -183,16 +186,16 @@ if __name__ == '__main__':
             - Use the same flexworker's data from their work at different companies.
             - Apply some generalised model for forecasting.
         '''
+        print(f'x train shape: {x_train.shape}')
+        print(f'y train shape: {y_train.shape}')
         try:
-            print(type(x_train))
-            print(x_train.shape)
-            history = model.fit(x_train, y_train, x_val, y_val, 500)
+            history = model.fit(x_train, y_train, x_val, y_val, 800)
         except Exception as e:
             print(f"Exception thrown when trying to fit: {e}")
             continue
 
         if individual:
-            df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers[-1])
+            df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers)
             dict_individual_losses["train loss"].append(result_values[0])
             dict_individual_losses["value loss"].append(result_values[4])
             dict_individual_losses["test loss"].append(result_values[8])
@@ -217,6 +220,5 @@ if __name__ == '__main__':
     hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
 
     if not individual: df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test,
-                                                                        y_test, scalers[-1])
-
+                                                                        y_test, scalers)
     store_results(hp, result_values, df_res, full_name[:-3], start_at)
