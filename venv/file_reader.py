@@ -1,5 +1,7 @@
 import pandas as pd
-from postfresql_import import fetch_postgresql_database
+from postfresql_import import fetch_postgresql_database, fetch_postgresql_flexworkers, \
+    fetch_postgresql_staffingcustomers, fetch_postgresql_flex_staff_database, fetch_postgresql_timecards
+import numpy as np
 
 '''
 For the initial testing, EXCEL files downloaded from the demo site are used, which are not reliable.
@@ -54,7 +56,25 @@ def create_date_features(df):
     return df
 
 
-def read_file(test=False, connection=True, store_locally=False):
+def store_flexworkers():
+    flexworkers = fetch_postgresql_flexworkers()
+    np.savetxt(r"../../data/edited data/flexworkers.txt", flexworkers.values, fmt='%s')
+    exit()
+
+
+def store_staffingcustomers():
+    staffingcustomers = fetch_postgresql_staffingcustomers()
+    np.savetxt(r"../../data/edited data/staffingcustomers.txt", staffingcustomers.values, fmt='%s')
+    exit()
+
+
+def store_flex_staff_table():
+    staffingcustomers = fetch_postgresql_flex_staff_database()
+    staffingcustomers.to_csv("../../data/edited data/flex_staff.csv")
+    exit()
+
+
+def read_file(mode, args=[], test=False, connection=True, store_locally=False):
     # Set some options for displaying the data through pandas
 
     pd.set_option('display.max_rows', 500)
@@ -70,8 +90,10 @@ def read_file(test=False, connection=True, store_locally=False):
     
     THIS WAS VALID FOR THE EXCEL IMPORT, NOT THE DATABASE IMPORT!!!!!!!
     '''
-    if connection:
+    if connection and mode == 1:
         df = fetch_postgresql_database()
+    elif connection and (mode == 3 or mode == 2):
+        df = fetch_postgresql_timecards(args[0], args[1])
     else:
         # df = database_from_excel()
         df = database_from_csv()

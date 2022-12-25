@@ -164,11 +164,11 @@ def general_statistics(df, cnt):
 
 def stat_mode_initialiser(df, split=1, i=0):
     FEATURES = ['assignment_startdate', 'assignment_enddate', 'quarter', 'weekofyear', 'assignmentcomponent_startdate',
-                'assignmentcomponent_enddate', 'assignment_flexworkerid', 'assignmentcomponent_wage',
+                'assignmentcomponent_enddate', 'assignment_flexworkerid',
                 'staffingcustomer_companyname', 'timecardline_amount']
     print("Using statistic analysis mode")
-    print(f"Number of workers considered: {len(df[FEATURES[-3]].unique())}")
-    print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
+    # print(f"Number of workers considered: {len(df[FEATURES[-3]].unique())}")
+    # print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
     df_list = create_subsets(df, FEATURES, split=split, company_split=False)
     histogram_anova=[]
     # df_list = fill_gaps(df_list, dt_inputs=True)

@@ -1,5 +1,5 @@
 import numpy as np
-from file_reader import read_file
+from file_reader import read_file, store_flexworkers, store_staffingcustomers,store_flex_staff_table
 from stattests import stat_mode_initialiser
 from rnn import store_results, plot_history, run_and_plot_predictions, store_individual_losses
 from preprocessing import *
@@ -19,6 +19,8 @@ multi-dimensional array for the scaler storage. Scaled values need to be convert
 conversion. Scaled prediction values are not wrong, the model simply messes up in its predictions
 Check individual trainings to see how scaling back works
 Add the dates to the final export 
+DO IT IN THE FORMAT OF E-UUR: Consider a table where the rows are the days of the week that's being predicted, and the 
+column next to that shows the actual hours worked that day, with the predicted next to it.
 
 * Convert Pandas data handling to postgres, minimise pandas operations
 Follow tutorials on basic handling. 
@@ -27,6 +29,12 @@ adding complex columns based on existing columns
 EMAIL FOR HELP BUILDING DATABASE IN POSTGRES
 Hard to send queries with unknowns 
 Hard to resample and fill in empty data
+QUERY ONLY THE NECESSARY FLEXWORKER-STAFFINGCUSTOMER COMBINATION FOR THE PREDICTION
+
+MAKE A SINGLE DATAFRAME FROM THE SINGLE QUERY RESULT YIELDED BY POSTGRES
+
+* Make it callable from the commandline = which flexworkerid and which staffingcustomerid do you want to predict for!
+Find which are the staffingcustomerids and flexworkerids for the currently selected dataframes
 
 * Experiment for better predictions:
     - Batch sizes
@@ -51,23 +59,30 @@ if __name__ == '__main__':
     '''
     A way of making the program swap between univariate and multivariate approaches. 0: univariate, 1: multivariate
     and 2: statistic test mode.
+    The mode is irrelevant now, what needs to be done is input the flexworkerid and staffingcustomerid that the prediction should be made for
     '''
     mode = 1
     split = 1                       # Split the data according to employees and their individual companies they work for
     individual = False               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
-    connection = False               # Enable if there is a connection to the Akyla database
+    connection = True               # Enable if there is a connection to the Akyla database
     general_prediction_mode = False # Controls whether the predictions will be made for each specific worker, or general
     in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 7                # Controls how many days in advance the
     start_at = 0
 
+    # store_flex_staff_table()
+
     if len(sys.argv) > 1:
         mode = int(sys.argv[1])
-        try:
-            start_at = int(sys.argv[2])
-        except Exception as e:
-            print(f'Did not get start_at due to error: {e}\n'
-                  f'Ignore if you are training a general prediciton model... No starting position was provided.')
+        if mode == 2 or mode == 3:
+            flexworkerid = int(sys.argv[2])
+            staffingcustomerid = int(sys.argv[3])
+        else:
+            try:
+                start_at = int(sys.argv[2])
+            except Exception as e:
+                print(f'Did not get start_at due to error: {e}\n'
+                      f'Ignore if you are training a general prediciton model... No starting position was provided.')
 
 
 
@@ -75,11 +90,17 @@ if __name__ == '__main__':
     The features considered change depending on the mode, as well as depending on the kinds of data that we want to 
     use for the forecasting of working hours.
     '''
-    if mode == 1: FEATURES = ['is_holiday', 'dayofweek', 'weekofyear', 'active_assignments', 'timecard_totalhours', 'timecardline_amount']
+    if mode == 1 or mode == 3: FEATURES = ['is_holiday', 'dayofweek', 'weekofyear', 'active_assignments', 'timecard_totalhours', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
-    df = read_file(connection=connection, store_locally=False)
 
+    '''
+    Read the file of the customer we are interested in. Only query a big portion of the database if you need to train 
+    the generalised model.
+    Write a query that allows you to only take one timesheet collection.
+    '''
+    df = read_file(mode, [flexworkerid, staffingcustomerid], connection=connection, store_locally=False)
+    print(df.head())
     # Takes the stat analysis path instead of trying to predict and train.
     if mode==2: stat_mode_initialiser(df, split, start_at)
 
@@ -95,7 +116,8 @@ if __name__ == '__main__':
     '''
     df_list, scalers = convert_data(df, FEATURES, split)
     # The last 10 timecards are useless, so remove them
-    df_list = df_list[:-13]
+    # df_list = df_list[:-13]
+    print(f"The current list is:\n{df_list}")
 
     '''
     This method is currently trying to create a generalised model that trains and evaluates the model after each
@@ -145,9 +167,9 @@ if __name__ == '__main__':
         model.check()
 
     for cnt, df_np in enumerate(df_list):
-
+        print(f"Got in the loop with cnt: {cnt} and df_np:\n{df_np}")
         if evaluation_mode: continue
-        if (not general_prediction_mode) and (cnt < start_at):continue
+        # if (not general_prediction_mode) and (cnt < start_at):continue
         print('the size is: ', df_np.size)
         if df_np.size < 30: continue # If the input if too small, there is no point training on it
 
@@ -156,10 +178,10 @@ if __name__ == '__main__':
         each flexworker, without impacting bias from other cases. Individual models should be trained and
         SAVED separately.
         '''
-        if (not general_prediction_mode) and not transfer_learning:
+        if (not general_prediction_mode) and (not transfer_learning):
             print("Create a new GRU model")
             # Pass an argument for saving each model separately
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=1200) #128 okay
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=1000) #128 okay
             model.compile()
             model.check()
 
@@ -173,7 +195,7 @@ if __name__ == '__main__':
 
         if mode == 0: x_train, y_train = partition_dataset(df_np, in_win_size, out_win_size)
 
-        elif mode == 1: x_train, y_train = multi_partition_dataset(df_np, in_win_size, out_win_size)
+        elif mode == 1 or mode==3: x_train, y_train = multi_partition_dataset(df_np, in_win_size, out_win_size)
 
         # scaler is useful to see the original data again after
         x_train, y_train, x_val, y_val, x_test, y_test, scalers = data_scaler([x_train, y_train, x_val, y_val, x_test, y_test])

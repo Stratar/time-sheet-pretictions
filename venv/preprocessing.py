@@ -314,7 +314,7 @@ def data_split(df_np, in_win_size, out_win_size, mode):
     if mode == 0:
         x_test, y_test = partition_dataset(test_data, in_win_size, out_win_size)
         x_val, y_val = partition_dataset(val_data, in_win_size, out_win_size)
-    elif mode == 1:
+    elif mode == 1 or mode==3:
         x_test, y_test = multi_partition_dataset(test_data, in_win_size, out_win_size)
         x_val, y_val = multi_partition_dataset(val_data, in_win_size, out_win_size)
 

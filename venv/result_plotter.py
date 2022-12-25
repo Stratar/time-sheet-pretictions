@@ -18,20 +18,24 @@ def bar_plotter(df):
     test_predictions = df.iloc[:, -2][~np.isnan(df.iloc[:, -2])].apply(lambda x:x*2).round().apply(lambda x:x/2)
     test_actuals = df.iloc[:, -1][~np.isnan(df.iloc[:, -1])]
     days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    test_predictions = test_predictions.values.reshape(-1,7)
-    test_actuals = test_actuals.values.reshape(-1,7)
+    test_predictions = test_predictions.values.reshape(-1, 7)
+    test_actuals = test_actuals.values.reshape(-1, 7)
+    train_predictions = test_predictions.values.reshape(-1,7)
+    train_actuals = test_actuals.values.reshape(-1,7)
 
     barWidth = 0.25
     fig = plt.subplots(figsize=(12, 8))
 
     # Set position of bar on X axis
-    br1 = np.arange(len(test_actuals[0]))
+    print(test_actuals)
+    print(train_actuals)
+    br1 = np.arange(len(train_actuals[0]))
     br2 = [x + barWidth for x in br1]
 
     # Make the plot
-    plt.bar(br1, test_actuals[0], color='r', width=barWidth,
+    plt.bar(br1, train_actuals[0], color='r', width=barWidth,
             edgecolor='grey', label='actuals')
-    plt.bar(br2, test_predictions[0].round(1), color='g', width=barWidth,
+    plt.bar(br2, train_actuals[0], color='g', width=barWidth,
             edgecolor='grey', label='predictions')
 
     # Adding Xticks
