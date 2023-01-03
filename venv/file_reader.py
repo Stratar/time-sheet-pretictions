@@ -31,6 +31,12 @@ def database_from_excel():
     return df
 
 
+def flex_staff_pairs_from_csv():
+    df = pd.read_csv("../../data/edited data/flex_staff.csv")
+    df = df.drop(columns=df.columns[0])
+    return df
+
+
 def database_from_csv():
     df = pd.read_csv("../../data/edited data/worker_big_db_export.csv")
     return df
@@ -74,7 +80,7 @@ def store_flex_staff_table():
     exit()
 
 
-def read_file(mode, args=[], test=False, connection=True, store_locally=False):
+def read_file(mode, args=[], general_prediction_mode=False, test=False, connection=True, store_locally=False):
     # Set some options for displaying the data through pandas
 
     pd.set_option('display.max_rows', 500)
@@ -87,15 +93,17 @@ def read_file(mode, args=[], test=False, connection=True, store_locally=False):
     depending on their impact on the prediction.
     Removed: Plaatsing (ID/CODE), Datum, Flexkracht, Urensoort
     I have not yet checked anything with Periodenummer
-    
-    THIS WAS VALID FOR THE EXCEL IMPORT, NOT THE DATABASE IMPORT!!!!!!!
     '''
     if connection and mode == 1:
         df = fetch_postgresql_database()
     elif connection and (mode == 3 or mode == 2):
-        df = fetch_postgresql_timecards(args[0], args[1])
+        if general_prediction_mode:
+            df = pd.DataFrame()
+            for flexworker, staffingcustomer in zip(args[0], args[1]):
+                df = pd.concat(df, fetch_postgresql_timecards(flexworker, staffingcustomer))
+        else:
+            df = fetch_postgresql_timecards(args[0], args[1])
     else:
-        # df = database_from_excel()
         df = database_from_csv()
     if test:
         df = test_database_from_csv()

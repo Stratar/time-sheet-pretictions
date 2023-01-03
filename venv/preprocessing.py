@@ -96,9 +96,11 @@ def train_val_split(df_np, in_win_size, out_win_size=1):
     return train_data, val_data
 
 
-def get_test_set_np(df_list, size=0.8, in_win_size=7):
+def get_test_set_np(df_list, size=0.8, in_win_size=7, out_win_size=14):
     if len(df_list) == 1:
         data_length = math.ceil(df_list[0].shape[0] * size)
+        if df_list[0].shape[0] - data_length < in_win_size + out_win_size: data_length= df_list[0].shape[0] - \
+                                                                                        (in_win_size + out_win_size)
         test_data = df_list[0][data_length - in_win_size:]
         df_list[0] = df_list[0][:data_length]
     elif len(df_list) > 1:
@@ -304,17 +306,17 @@ def data_split(df_np, in_win_size, out_win_size, mode):
     array_type=False
     if type(df_np) == np.ndarray: array_type=True
 
-    if array_type: df_np, test_data = get_test_set_np([df_np], in_win_size=in_win_size)
-    elif not array_type: df_np, test_data = get_test_set_np(df_np, in_win_size=in_win_size)
+    if array_type: df_np, test_data = get_test_set_np([df_np], in_win_size=in_win_size, out_win_size=out_win_size)
+    elif not array_type: df_np, test_data = get_test_set_np(df_np, in_win_size=in_win_size, out_win_size=out_win_size)
 
-    df_np, val_data = get_test_set_np(df_np, in_win_size=in_win_size)
+    df_np, val_data = get_test_set_np(df_np, in_win_size=in_win_size, out_win_size=out_win_size)
 
     if array_type: df_np = df_np[0]  # Maybe this looks clumsy but it works
 
     if mode == 0:
         x_test, y_test = partition_dataset(test_data, in_win_size, out_win_size)
         x_val, y_val = partition_dataset(val_data, in_win_size, out_win_size)
-    elif mode == 1 or mode==3:
+    elif mode == 1 or mode == 3:
         x_test, y_test = multi_partition_dataset(test_data, in_win_size, out_win_size)
         x_val, y_val = multi_partition_dataset(val_data, in_win_size, out_win_size)
 

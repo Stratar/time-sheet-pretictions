@@ -188,7 +188,4 @@ def stat_mode_initialiser(df, split=1, i=0):
     unique_items = np.unique(histogram_anova)
     print(unique_items)
     print(len(unique_items))
-    n, bins, patches = plt.hist(histogram_anova, bins='auto')
-    plt.grid(axis='y', alpha=0.75)
-    plt.show()
     exit()

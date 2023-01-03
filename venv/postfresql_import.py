@@ -36,7 +36,7 @@ cmd_get_staffingcustomer_list = "Select view_staffingcustomerid from (select * f
 cmd_get_flex_staff_db = "Select assignment_flexworkerid, staffingcustomer_staffingcustomerid from timecardinfo where " \
                         "assignment_flexworkerid in (select assignment_flexworkerid from timecardinfo where " \
                         "timecardline_linedate > '2020-01-01' group by assignment_flexworkerid having " \
-                        "sum(timecardline_amount) > 0 order by count(*) desc limit 200) group by " \
+                        "(sum(timecardline_amount) > 0 and count(*) > 50) order by count(*) desc limit 200) group by " \
                         "assignment_flexworkerid, staffingcustomer_staffingcustomerid;"
 
 
