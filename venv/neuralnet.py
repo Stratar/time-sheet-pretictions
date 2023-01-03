@@ -131,7 +131,7 @@ class GRUNeuralNetwork:
 
 class AdvGRUNeuralNetwork:
 
-    def __init__(self, in_shape, out_shape, n_layers=3, gru_size=32, hid_size=4, lr=1e-3):
+    def __init__(self, in_shape, out_shape, n_layers=3, gru_size=32, hid_size=4, lr=2.5e-4):
         self.n_layers = n_layers
         self.layer_size = gru_size
         self.hid_size = hid_size
@@ -142,15 +142,15 @@ class AdvGRUNeuralNetwork:
         self.name = self.model._name
         self.model.add(tf.keras.layers.InputLayer(in_shape, name='GRU_Input'))
         for i in range(n_layers-1):
-            self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.15, recurrent_dropout=0))
+            self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.3, recurrent_dropout=0))
             self.model.add(tf.keras.layers.RepeatVector(out_shape[0], name=f'GRU_RepeatVector_{i}'))
-        self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.15, recurrent_dropout=0,
+        self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.3, recurrent_dropout=0,
                                                                          return_sequences=True))
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid'), name='GRU_Output'))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
         self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
-        self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru.h5', save_best_only=True)
+        self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru.h5', save_best_only=False) # Saving
 
     def compile(self):
         self.model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=self.optimizer,

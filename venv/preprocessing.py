@@ -202,7 +202,8 @@ def get_assignment_dates(df):
 
 
 def add_holidays(df):
-    df.loc[:,'is_holiday'] = 0
+    # df.loc[:,'is_holiday'] = 0
+    df.insert(0, 'is_holiday', np.zeros(df.shape[0]))
     for date in np.unique(df.index.values):
         edit_date = str(date)[:10]
         edit_date = datetime.strptime(edit_date, "%Y-%m-%d").date()
@@ -274,7 +275,8 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
         df1 = fill_gaps(df1[features], dt_inputs=True)
         df1 = add_holidays(df1)
         if holiday_bool: features.insert(0, ins)
-        if not (df1[features[-1]] == 0).all():
+        zero_amount_bool = (df1[features[-1]] == 0).all()
+        if not zero_amount_bool:
             df_list.append(df1[features]) # For now drop the ids, but they are needed later!
             if store_locally: df1.to_excel(f"../../data/edited data/workers exp/worker{i}.xlsx")
         i+=1

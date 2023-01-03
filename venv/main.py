@@ -56,11 +56,12 @@ if __name__ == '__main__':
     individual = False               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
     connection = True               # Enable if there is a connection to the Akyla database
     general_prediction_mode = False # Controls whether the predictions will be made for each specific worker, or general
-    in_win_size = 7                # Control how many days are used for forecasting the working hours
+    in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 7                # Controls how many days in advance the
     start_at = 0
 
     # store_flex_staff_table()
+
     '''
     This may need to be more compact!
     '''
@@ -163,12 +164,8 @@ if __name__ == '__main__':
         model.check()
 
     for cnt, df_np in enumerate(df_list):
-        print(f"Got in the loop with cnt: {cnt} and df_np:\n{df_np}")
-        if evaluation_mode: continue
-        # if (not general_prediction_mode) and (cnt < start_at):continue
-        print('the size is: ', df_np.shape)
-        if df_np.shape[0] < 45: continue # If the input if too small, it is not possible to train on it. 63 with 14-7
-
+        if evaluation_mode: continue # Might not be necessary
+        if df_np.shape[0] < 63: continue # If the input if too small, it is not possible to train on it. 63 with 14-7 / 45 with 7-7 / 84 with 21-7
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
         each flexworker, without impacting bias from other cases. Individual models should be trained and
@@ -177,10 +174,9 @@ if __name__ == '__main__':
         if (not general_prediction_mode) and (not transfer_learning):
             print("Create a new GRU model")
             # Pass an argument for saving each model separately
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=4, gru_size=400) #128 okay
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=450) #128 okay
             model.compile()
             model.check()
-
         print(f"\n********************************************************************************************\n"
               f"                                        Iteration {cnt}:"
               f"\n********************************************************************************************")
