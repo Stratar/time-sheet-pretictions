@@ -149,7 +149,7 @@ class AdvGRUNeuralNetwork:
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid'), name='GRU_Output'))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=550)
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru.h5', save_best_only=False) # Saving
 
     def compile(self):
@@ -228,8 +228,9 @@ class TransferNeuralNetwork:
                                                         metrics=[tf.keras.metrics.RootMeanSquaredError(),
                                                         tf.keras.metrics.KLDivergence()])
 
-    def build(self):
-        self.model.build(input_shape=(None, 14, 6))
+    def build(self, in_win_size=14, n_vars=6):
+        # Pass the variables into the build itself
+        self.model.build(input_shape=(None, in_win_size, n_vars))
 
     def fit(self, x, y, x_val, y_val, epochs=100):
         self.epochs = epochs

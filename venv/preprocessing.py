@@ -73,13 +73,13 @@ def multi_partition_dataset(data, in_win_size, out_win_size, step=1):
     for i in range(in_win_size, data_len - out_win_size, step):
         row = [r for r in data[i - in_win_size:i]]
         x.append(row)
-        label = [r[-1] for r in data[i:i + out_win_size]]
+        label = [[r[1], r[2], r[-1]] for r in data[i:i + out_win_size]]
         y.append(label)
 
     n_dims = data.shape[1]
     # Convert the x and y to numpy arrays
     x = np.array(x).reshape(len(x),in_win_size, n_dims)
-    y = np.array(y).reshape(len(y),out_win_size, 1)
+    y = np.array(y).reshape(len(y),out_win_size, 3) # Normally it's 1, but adding the date and week makes it 3
 
     return x, y
 

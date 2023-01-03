@@ -25,10 +25,12 @@ Table is okay for a start
 
 * The input window size can be reduced from 2 weeks to 1 week, or 10 days
 
+* Check the way that the results are stored in order to add the dayofweek and weekofyear as part of the stored output
+
 * Experiment for better predictions:
     - Batch sizes
-    - Layers (Too many layers may be counter-productive): 3 are okay
-    - Nodes: 1000 performs more or less the same as 800
+    - Layers (Too many layers may be counter-productive): 3 - are okay More usually lead to zero results
+    - Nodes: 1000 performs more or less the same as 800 
     - Learning Rates
 '''
 
@@ -130,7 +132,6 @@ if __name__ == '__main__':
         '''
         Could add scaling here instead for the whole dataset, as that produces off scalings
         '''
-
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
         model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=8, lstm_size=150) # 16 128
         model.compile()
@@ -174,7 +175,7 @@ if __name__ == '__main__':
         if (not general_prediction_mode) and (not transfer_learning):
             print("Create a new GRU model")
             # Pass an argument for saving each model separately
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=450) #128 okay
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=450) #16-128 okay
             model.compile()
             model.check()
         print(f"\n********************************************************************************************\n"
@@ -203,7 +204,7 @@ if __name__ == '__main__':
         print(f'x train shape: {x_train.shape}')
         print(f'y train shape: {y_train.shape}')
         try:
-            history = model.fit(x_train, y_train, x_val, y_val, 500)
+            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, 1000)
         except Exception as e:
             print(f"Exception thrown when trying to fit: {e}")
             continue
@@ -219,7 +220,7 @@ if __name__ == '__main__':
         if (not general_prediction_mode) and (cnt == end_at): break
 
     end = datetime.now()
-    train_time = (end-start).total_seconds()                                    # Get the training time of the model
+    train_time = (end-start).total_seconds()
 
     if not load_model:
         full_name = get_savefile_name(mode, model.name, FEATURES)  # Get the full name for the results
