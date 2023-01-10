@@ -140,13 +140,9 @@ def convert_and_scale(df_list):
     return df_list, scalers
 
 
-def create_subsets(df, features, split=-1, company_split=True):
-    df_list = []
-    if split == 1:
-        df_list = get_flex_groups(df, features)
-        # df_list = get_flex_groups(df, features, company_split=company_split)
-    else:
-        df_list.append(df)
+def create_subsets(df, features):
+
+    df_list = get_flex_groups(df, features)
 
     return df_list
 
@@ -180,11 +176,7 @@ def remove_double_indices(df, cnt):
     '''
     # More conditions for data squeezing can be added
     if cnt < 0: # Just to see the differences between double indices
-        print(f"CNT: {cnt}")
-        print(f"the size before grouping: {df.shape}")
         group = df.groupby(df.index).agg({k: sum if k == 'timecardline_amount' else 'first' for k in df.columns})
-        print(f"the size after grouping: {group.shape}")
-        print("------------------------------------------")
     return df.groupby(df.index).agg({k:sum if k == 'timecardline_amount' else 'first' for k in df.columns})
 
 
@@ -230,7 +222,7 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     Keep in mind that the column name may change, depending on the dataset that is being used.
     '''
     name_grouping = "assignment_flexworkerid"
-    company_grouping = "staffingcustomer_companyname"
+    company_grouping = "staffingcustomer_companyname" # staffingcustomer_staffingcustomerid
     df_list = []
     group_df = df.groupby(name_grouping)
     holiday_bool = False
@@ -240,8 +232,8 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     for flexworkerid in flexworker_collection:
         df1 = group_df.get_group(flexworkerid)
         if len(df1[company_grouping].unique()) > 1:
-            group_comp = df1.groupby(company_grouping)
             j=0
+            group_comp = df1.groupby(company_grouping)
             dates_dict = get_assignment_dates(df1)
             df1 = add_total_active_assignments(df1, dates_dict)
             if company_split:
@@ -288,7 +280,7 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
 
 
 def convert_data(df, features, split=True, legacy=False):
-    df_list = create_subsets(df, features, split=split)
+    df_list = create_subsets(df, features)
     # df_list = add_support_variables(df_list)
     '''
     Scale all input variables that would be used for the forecast. The last two flexworkers are the ones that are being

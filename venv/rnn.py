@@ -31,8 +31,6 @@ from sklearn.metrics import mean_squared_error as mse
 def res_dataframe(res, y):
     df = pd.DataFrame(columns=['Predictions', 'Actuals'])
     df['Predictions'] = res
-    print(y)
-    print(f"The next is:\n{y.T}")
     y = y.T
     df['day'] = y[0].flatten()
     df['week'] = y[1].flatten()
@@ -42,29 +40,25 @@ def res_dataframe(res, y):
 
 
 def plot_predictions(model, X, y, scalers, start=0, end=150, show_plots=True):
-    print(f'Raw predictions: {model.predict(X)}\n------------------------------------\n')
-    print(f'Raw labels: {y}\n------------------------------------\n')
+    time_shape = y.shape[1]
     df = res_dataframe(model.predict(X).flatten(), y) # Could remove the flatten
     # df = res_dataframe(model.predict(X).flatten(), y.flatten()) # Could remove the flatten
-    print(df)
-    if show_plots:
-        plt.plot(df['Predictions'][start:end])
-        plt.plot(df['Actuals'][start:end])
-        plt.title('Predictions vs Actuals')
-        plt.ylabel('value')
-        plt.xlabel('epoch')
-        plt.legend(['Predictions', 'Actuals'], loc='upper left')
-        plt.grid()
-        plt.show()
+    # if show_plots:
+    #     plt.plot(df['Predictions'][start:end])
+    #     plt.plot(df['Actuals'][start:end])
+    #     plt.title('Predictions vs Actuals')
+    #     plt.ylabel('value')
+    #     plt.xlabel('epoch')
+    #     plt.legend(['Predictions', 'Actuals'], loc='upper left')
+    #     plt.grid()
+    #     plt.show()
     # In the case that weeks and days are also stored in the data, all of them need to be scaled back
-    y.T[-1] = scalers[-1][-1].inverse_transform(np.array(y.T[-1].flatten()).reshape(-1,1)).reshape(7,-1)
-    y.T[0] = scalers[-1][0].inverse_transform(np.array(y.T[0].flatten()).reshape(-1,1)).reshape(7,-1)
-    y.T[1] = scalers[-1][1].inverse_transform(np.array(y.T[1].flatten()).reshape(-1,1)).reshape(7,-1)
+    y.T[-1] = scalers[-1][-1].inverse_transform(np.array(y.T[-1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
+    y.T[0] = scalers[-1][0].inverse_transform(np.array(y.T[0].flatten()).reshape(-1,1)).reshape(time_shape,-1)
+    y.T[1] = scalers[-1][1].inverse_transform(np.array(y.T[1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
 
-    print(f'Scaled labels: {y}\n------------------------------------\n')
     # Scaling the predictions seems problematic
     predictions = scalers[-1][-1].inverse_transform(model.predict(X).reshape(-1,1)).flatten() # Try to scale with x scaler
-    print(f'Scaled predictions: {predictions}')
     df = res_dataframe(predictions, y)
     if show_plots:
         plt.plot(df['Predictions'][start:end])
@@ -105,7 +99,7 @@ def plot_history(history):
     plt.show()
 
 
-def store_results(hyperparams, history, results, full_name, iteration_number):
+def store_results(hyperparams, history, results, full_name, iteration_number=0): #Remove the iteration number
     df = pd.DataFrame(columns=['train time', 'layer number', 'input shape', 'output shape', 'layer size',
                                'hidden size', 'learning rate', 'epochs', 'mse train', 'kl train',
                                'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val', 'mae val',
@@ -119,16 +113,7 @@ def store_results(hyperparams, history, results, full_name, iteration_number):
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
     df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}v.xlsx")
-
-
-def store_individual_losses(dict_individual_losses, full_name, iteration_number):
-    df_iterative = pd.DataFrame.from_dict(dict_individual_losses)
-    df_iterative["train mean"] = df_iterative["train loss"].mean()
-    df_iterative["value mean"] = df_iterative["value loss"].mean()
-    df_iterative["test mean"] = df_iterative["test loss"].mean()
-    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
-        os.makedirs(f"../../data/results/RNN/{full_name}")
-    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses {iteration_number}v.xlsx")
+    print(f"Stored as: ../../data/results/RNN/{full_name}/{iteration_number}v.xlsx")
 
 
 def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers):

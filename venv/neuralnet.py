@@ -208,19 +208,27 @@ class TransferNeuralNetwork:
 
         self.model = tf.keras.models.Sequential()
         self.model.add(self.base_model.get_model())
+        n_layers = int(n_layers)
+        # self.model.add(tf.keras.layers.Conv1D(lstm_size, 3, use_bias=False, activation='sigmoid'))
         for i in range(n_layers - 1):
-            self.model.add(tf.keras.layers.GRU(lstm_size, dropout=0.2, recurrent_dropout=0))
+        #     # self.model.add(tf.keras.layers.Dense(lstm_size, name='Trans_Dense'))
+        #     self.model.add(tf.keras.layers.Conv1D(int(lstm_size/2), 2, use_bias=True, activation='sigmoid'))
+        #     self.model.add(tf.keras.layers.Flatten())
+            self.model.add(tf.keras.layers.GRU(int(lstm_size), dropout=0.2, recurrent_dropout=0))
             self.model.add(tf.keras.layers.RepeatVector(out_shape[0], name=f'Trans_RepeatVector_{i}'))
+
+        self.model.add(tf.keras.layers.Conv1D(int(lstm_size/3), 2, activation='sigmoid'))
+        self.model.add(tf.keras.layers.Flatten())
+        self.model.add(tf.keras.layers.RepeatVector(out_shape[0], name=f'Trans_RepeatVector'))
         self.model.add(tf.keras.layers.GRU(lstm_size, dropout=0.2, recurrent_dropout=0,
                                 return_sequences=True, name='Trans_GRU'))
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid', name='Trans_output')))
-        # self.model.add()
 
         self.model._name = "TansferModel"
         self.name = self.model._name
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=500)
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru.h5', save_best_only=True)
 
     def compile(self):
