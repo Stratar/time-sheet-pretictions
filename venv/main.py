@@ -50,13 +50,12 @@ possible.
 
 def get_savefile_name(mode, model_name, features, transfer_learning=False, out_win_size=1):
     mode_name = ''
-    if mode == 1: mode_name = 'multivariate_'
-    elif mode == 3: mode_name = 'multivariate_'
-    else: mode_name = 'univariate_'
+    if mode == 1: mode_name = 'prediction_'
+    elif mode == 3: mode_name = 'training_'
+    else: mode_name = 'other_'
     if transfer_learning: model_name = "AdvLSTM_"
     else: model_name = model_name + "_"
-    if out_win_size == 1: win_name = "1_"
-    elif out_win_size == 7: win_name = "7_"
+    win_name = f"{out_win_size}_"
     target_name = "timecardline_amount"
     full_name = mode_name+model_name+win_name+target_name + '.h5'
     return full_name
@@ -68,7 +67,7 @@ def get_execution_mode(args):
         raise Exception("The input provided was insufficient to continue with the execution.")
         exit()
 
-    general_training_mode = False # Controls whether the predictions will be made for each specific worker, or general
+    general_training_mode = False   # Controls whether the predictions will be made for each specific worker, or general
     load_model = False              # If evaluation mode or transfer learning
     transfer_learning = False
 
@@ -85,14 +84,13 @@ def get_execution_mode(args):
         if int(args[-1]) < 1000:
             index = int(args[-1])
             df_fs = flex_staff_pairs_from_csv()
-            fwid, scid = int(df_fs.iloc[index, 0]), int(df_fs.iloc[index, 1])
-            return mode, general_training_mode, transfer_learning, load_model, fwid, scid
+            return mode, general_training_mode, transfer_learning, load_model, int(df_fs.iloc[index, 0]), \
+                   int(df_fs.iloc[index, 1])
 
-        fwid = int(args[-2])
-        scid = int(args[-1])
+        fwid, scid = int(args[-2]), int(args[-1])
         return mode, general_training_mode, transfer_learning, load_model, fwid, scid
-    else: raise Exception("Invalid input. Please specify the function: Train, Predict of Statistics")
 
+    else: raise Exception("Invalid input. Please specify the function: Train, Predict of Statistics")
 
 
 if __name__ == '__main__':
@@ -173,7 +171,7 @@ if __name__ == '__main__':
         Could add scaling here instead for the whole dataset, as that produces off scalings
         '''
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
-        model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=2, lstm_size=350) # 16 128
+        model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=3, lstm_size=350) # 16 128
         model.compile()
         model.check()
     '''
@@ -201,7 +199,7 @@ if __name__ == '__main__':
     for cnt, df_np in enumerate(df_list):
         if mode == 1: continue # Might not be necessary
         df_np_T = np.transpose(df_np)
-        if df_np.shape[0] < 63 or np.mean(np.transpose(df_np)[-1]) < 1.5: continue # If the input if too small, it is not possible to train on it. 63 with 14-7 / 45 with 7-7 / 84 with 21-7
+        if df_np.shape[0] < 63 or np.mean(np.transpose(df_np)[-1]) < 1.75: continue # If the input if too small, it is not possible to train on it. 63 with 14-7 / 45 with 7-7 / 84 with 21-7
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
         each flexworker, without impacting bias from other cases. Individual models should be trained and
@@ -235,7 +233,7 @@ if __name__ == '__main__':
             - Apply some generalised model for forecasting.
         '''
         try:
-            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, 600)
+            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, 150)
         except Exception as e:
             print(f"Exception thrown when trying to fit: {e}")
             continue

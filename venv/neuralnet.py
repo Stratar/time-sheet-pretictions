@@ -274,7 +274,7 @@ class TransferNeuralNetwork:
 
 class AdvLSTMNeuralNetwork:
 
-    def __init__(self, in_shape, out_shape, n_layers=3, lstm_size=64, hid_size=4, lr=1e-4):
+    def __init__(self, in_shape, out_shape, n_layers=3, lstm_size=64, hid_size=4, lr=5e-4):
         self.n_layers = n_layers
         self.layer_size = lstm_size
         self.hid_size = hid_size
@@ -292,7 +292,7 @@ class AdvLSTMNeuralNetwork:
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
         # val_loss cannot be found in early stopping condition, it only detects the metrics
-        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=100)
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=75)
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_advlstm.h5', save_best_only=False)
 
     def compile(self):
