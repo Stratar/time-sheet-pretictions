@@ -17,7 +17,7 @@ column next to that shows the actual hours worked that day, with the predicted n
 Table is okay for a start
 Export as a table with 5/6 columns: (scid, fwid, weekno, dayno, prediction)
 
-* The input window size can be reduced from 2 weeks to 1 week, or 10 days
+* General training is slow when loading the fw and sc data. 
 
 * Experiment for better predictions:
     - Batch sizes
@@ -73,6 +73,7 @@ def get_execution_mode(args):
 
     mode_dict = {"train": 3, "statistics": 2, "predict": 1}
     train_dict = {"general": 1, "transfer": 2}
+
     if args[1] in mode_dict.keys():
         mode = mode_dict[args[1]]
         if mode == 3 and args[2] in train_dict:
@@ -80,7 +81,9 @@ def get_execution_mode(args):
             elif train_dict[args[2]] == 2: transfer_learning, load_model = True, True
             else: raise Exception("Invalid train command given. Specify if it is \'transfer\', \'general\' or give the "
                               "corresponding flexworkerid - staffincustomerid pair.")
+
         if mode == 1: load_model = True
+
         if int(args[-1]) < 1000:
             index = int(args[-1])
             df_fs = flex_staff_pairs_from_csv()
@@ -101,8 +104,8 @@ if __name__ == '__main__':
     '''
 
     mode, general_training_mode, transfer_learning, load_model, flexworkerid, staffingcustomerid = get_execution_mode(sys.argv)
-    # mode = 1
-    if mode == 1: prediction_mode = False
+    prediction_mode = False
+    if mode == 1: prediction_mode = True
     connection = True               # Enable if there is a connection to the Akyla database
     in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 7
@@ -114,11 +117,6 @@ if __name__ == '__main__':
             flexworkerid.append(row[0])
             staffingcustomerid.append(row[1])
 
-    # store_flex_staff_table()
-
-    '''
-    This may need to be more compact!
-    '''
     # if len(sys.argv) > 1:
     #     if len(sys.argv) == 3:
     #         index, mode = int(sys.argv[2]), int(sys.argv[1])
@@ -166,10 +164,9 @@ if __name__ == '__main__':
     '''
     input_shape = (in_win_size, len(FEATURES))
     output_shape = (out_win_size, 1) # The second value reflects how many different variables will be predicted]
+
     if general_training_mode:
-        '''
-        Could add scaling here instead for the whole dataset, as that produces off scalings
-        '''
+
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
         model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=3, lstm_size=350) # 16 128
         model.compile()
@@ -182,6 +179,7 @@ if __name__ == '__main__':
     '''
 
     dict_individual_losses = {"train loss": [], "value loss": [], "test loss": []}
+
     if load_model and transfer_learning:
         full_name = get_savefile_name(mode, '', FEATURES, transfer_learning=transfer_learning) # Get the full name for the results
         path = f'saved model weights/{full_name}'
@@ -206,9 +204,10 @@ if __name__ == '__main__':
         SAVED separately.
         '''
         if (not general_training_mode) and (not transfer_learning):
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=6, gru_size=450) #16-128 okay
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=2, gru_size=450) #16-128 okay
             model.compile()
             model.check()
+
         print(f"\n********************************************************************************************\n"
               f"                                        Iteration {cnt}:"
               f"\n********************************************************************************************")
@@ -233,22 +232,23 @@ if __name__ == '__main__':
             - Apply some generalised model for forecasting.
         '''
         try:
-            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, 150)
+            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, 1)
         except Exception as e:
             print(f"Exception thrown when trying to fit: {e}")
             continue
 
     train_time = (datetime.now()-start).total_seconds()
 
-    # if not load_model: # The weights are mostly stored when the training of the general, or personal models is complete
-    #     full_name = get_savefile_name(mode, model.name, FEATURES)  # Get the full name for the results
-    #     path = f'saved model weights/{full_name}'
-    #     # from the start of the loop to finish
-    #     model.save(path)
+    if not load_model: # The weights are mostly stored when the training of the general, or personal models is complete
+        full_name = get_savefile_name(mode, model.name, FEATURES)  # Get the full name for the results
+        path = f'saved model weights/{full_name}'
+        # from the start of the loop to finish
+        model.save(path)
 
     if not prediction_mode or not (mode == 1): plot_history(history) # Not needed for the final version
     if prediction_mode or  mode == 1: x_train, y_train = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
-    hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
+    hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs,
+          flexworkerid, staffingcustomerid]
 
     df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test,
                                                                         y_test, scalers)

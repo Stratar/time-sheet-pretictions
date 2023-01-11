@@ -35,7 +35,6 @@ def res_dataframe(res, y):
     df['day'] = y[0].flatten()
     df['week'] = y[1].flatten()
     df['Actuals'] = y[2].flatten()
-    # df['Actuals'] = y
     return df
 
 
@@ -43,16 +42,6 @@ def plot_predictions(model, X, y, scalers, start=0, end=150, show_plots=True):
     time_shape = y.shape[1]
     df = res_dataframe(model.predict(X).flatten(), y) # Could remove the flatten
     # df = res_dataframe(model.predict(X).flatten(), y.flatten()) # Could remove the flatten
-    # if show_plots:
-    #     plt.plot(df['Predictions'][start:end])
-    #     plt.plot(df['Actuals'][start:end])
-    #     plt.title('Predictions vs Actuals')
-    #     plt.ylabel('value')
-    #     plt.xlabel('epoch')
-    #     plt.legend(['Predictions', 'Actuals'], loc='upper left')
-    #     plt.grid()
-    #     plt.show()
-    # In the case that weeks and days are also stored in the data, all of them need to be scaled back
     y.T[-1] = scalers[-1][-1].inverse_transform(np.array(y.T[-1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
     y.T[0] = scalers[-1][0].inverse_transform(np.array(y.T[0].flatten()).reshape(-1,1)).reshape(time_shape,-1)
     y.T[1] = scalers[-1][1].inverse_transform(np.array(y.T[1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
@@ -99,15 +88,28 @@ def plot_history(history):
     plt.show()
 
 
+def table_export(df, full_name):
+    # df = df.reset_index(drop=True)
+    # df.loc[:,["Predictions_3"]].dropna(inplace=True)
+    df.loc[:, 'flexworkerid'] = df.loc[0, 'flexworkerid']
+    df.loc[:, 'staffingcustomerid'] = df.loc[0, 'staffingcustomerid']
+    df.loc[:, 'Predictions_3'] = df.loc[:, 'Predictions_3'].apply(lambda x:x*2).round().apply(lambda x:x/2)
+    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
+        os.makedirs(f"../../data/results/RNN/{full_name}")
+    df.to_csv(f"../../data/results/RNN/{full_name}/predictions_{df.loc[0, 'flexworkerid']}_{df.loc[0, 'staffingcustomerid']}.csv")
+
+
 def store_results(hyperparams, history, results, full_name, iteration_number=0): #Remove the iteration number
     df = pd.DataFrame(columns=['train time', 'layer number', 'input shape', 'output shape', 'layer size',
-                               'hidden size', 'learning rate', 'epochs', 'mse train', 'kl train',
-                               'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val', 'mae val',
-                               'mse test', 'kl test', 'rmse test', 'mae test'])
+                               'hidden size', 'learning rate', 'epochs', 'flexworkerid', 'staffingcustomerid',
+                               'mse train', 'kl train', 'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val',
+                               'mae val', 'mse test', 'kl test', 'rmse test', 'mae test'])
     list = hyperparams + history
 
     for col, i in zip(df, list):
         df[col] = [i]
+
+    table_export(pd.concat([df['flexworkerid'], df['staffingcustomerid'], results[["Predictions_3", "day_3", "week_3"]]], axis=1), full_name)
 
     df = pd.concat([df, results], axis=1)
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
@@ -126,6 +128,15 @@ def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_te
     print(mse_test, kl_test, rmse_test, mae_test)
 
     df_res = pd.concat([res_train, res_val, res_test], axis=1)
+    cols = []
+    col_dict = {"Predictions": 1, "Actuals": 1, "day": 1, "week": 1}
+    for column in df_res.columns:
+        if column in col_dict.keys():
+            cols.append(f'{column}_{col_dict[column]}')
+            col_dict[column] += 1
+            continue
+        cols.append(column)
+    df_res.columns = cols
     result_values = [mse_train, kl_train, rmse_train, mae_train, mse_val, kl_val, rmse_val, mae_val,
                      mse_test, kl_test, rmse_test, mae_test]
     return df_res, result_values
