@@ -75,14 +75,21 @@ def get_execution_mode(args):
     mode_dict = {"train": 3, "statistics": 2, "predict": 1}
     train_dict = {"general": 1, "transfer": 2}
     if args[1] in mode_dict.keys():
-        mode = mode_dict[args[i]]
+        mode = mode_dict[args[1]]
         if mode == 3 and args[2] in train_dict:
-            if train_dict[args[2]] == 1: return mode, True, _, _, _, _
+            if train_dict[args[2]] == 1: return mode, True, None, None, None, None
             elif train_dict[args[2]] == 2: transfer_learning, load_model = True, True
             else: raise Exception("Invalid train command given. Specify if it is \'transfer\', \'general\' or give the "
                               "corresponding flexworkerid - staffincustomerid pair.")
-        fwid = args[-2]
-        scid = args[-1]
+        if mode == 1: load_model = True
+        if int(args[-1]) < 1000:
+            index = int(args[-1])
+            df_fs = flex_staff_pairs_from_csv()
+            fwid, scid = int(df_fs.iloc[index, 0]), int(df_fs.iloc[index, 1])
+            return mode, general_training_mode, transfer_learning, load_model, fwid, scid
+
+        fwid = int(args[-2])
+        scid = int(args[-1])
         return mode, general_training_mode, transfer_learning, load_model, fwid, scid
     else: raise Exception("Invalid input. Please specify the function: Train, Predict of Statistics")
 
@@ -94,39 +101,44 @@ if __name__ == '__main__':
     and 2: statistic test mode.
     The mode is irrelevant now, what needs to be done is input the flexworkerid and staffingcustomerid that the prediction should be made for
     '''
-    mode = 1
-    prediction_mode = False         # Use a string input instead of this
-    general_training_mode = False # Controls whether the predictions will be made for each specific worker, or general
-    load_model = False              # If evaluation mode or transfer learning
-    transfer_learning = False
+
+    mode, general_training_mode, transfer_learning, load_model, flexworkerid, staffingcustomerid = get_execution_mode(sys.argv)
+    # mode = 1
+    if mode == 1: prediction_mode = False
     connection = True               # Enable if there is a connection to the Akyla database
     in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 7
 
+    if general_training_mode:
+        df_fs = flex_staff_pairs_from_csv()
+        flexworkerid, staffingcustomerid = [], []
+        for _, row in df_fs.iterrows():
+            flexworkerid.append(row[0])
+            staffingcustomerid.append(row[1])
+
     # store_flex_staff_table()
-    get_execution_mode(sys.argv)
 
     '''
     This may need to be more compact!
     '''
-    index = -1
-    if len(sys.argv) > 1:
-        if len(sys.argv) == 3:
-            index, mode = int(sys.argv[2]), int(sys.argv[1])
-            df_fs = flex_staff_pairs_from_csv()
-            flexworkerid, staffingcustomerid = int(df_fs.iloc[index, 0]), int(df_fs.iloc[index, 1])
-        elif len(sys.argv) == 2:
-            # This looks inefficient
-            general_training_mode = True
-            df_fs = flex_staff_pairs_from_csv()
-            flexworkerid, staffingcustomerid = [], []
-            for _, row in df_fs.iterrows():
-                flexworkerid.append(row[0])
-                staffingcustomerid.append(row[1])
-        elif mode == 2 or mode == 3:
-            flexworkerid, staffingcustomerid  = int(sys.argv[2]), int(sys.argv[3])
+    # if len(sys.argv) > 1:
+    #     if len(sys.argv) == 3:
+    #         index, mode = int(sys.argv[2]), int(sys.argv[1])
+    #         df_fs = flex_staff_pairs_from_csv()
+    #         flexworkerid, staffingcustomerid = int(df_fs.iloc[index, 0]), int(df_fs.iloc[index, 1])
+    #     elif len(sys.argv) == 2:
+    #         # This looks inefficient
+    #         general_training_mode = True
+    #         df_fs = flex_staff_pairs_from_csv()
+    #         flexworkerid, staffingcustomerid = [], []
+    #         for _, row in df_fs.iterrows():
+    #             flexworkerid.append(row[0])
+    #             staffingcustomerid.append(row[1])
+    #     elif mode == 2 or mode == 3:
+    #         flexworkerid, staffingcustomerid  = int(sys.argv[2]), int(sys.argv[3])
 
-    if mode == 3: FEATURES = ['is_holiday', 'dayofweek', 'weekofyear', 'active_assignments', 'timecard_totalhours', 'timecardline_amount']
+    if mode == 3 or mode == 1: FEATURES = ['is_holiday', 'dayofweek', 'weekofyear', 'active_assignments',
+                                           'timecard_totalhours', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
     df = read_file(mode, [flexworkerid, staffingcustomerid], general_prediction_mode=general_training_mode,
@@ -187,7 +199,7 @@ if __name__ == '__main__':
     start = datetime.now()
 
     for cnt, df_np in enumerate(df_list):
-        if prediction_mode or mode == 1: continue # Might not be necessary
+        if mode == 1: continue # Might not be necessary
         df_np_T = np.transpose(df_np)
         if df_np.shape[0] < 63 or np.mean(np.transpose(df_np)[-1]) < 1.5: continue # If the input if too small, it is not possible to train on it. 63 with 14-7 / 45 with 7-7 / 84 with 21-7
         '''

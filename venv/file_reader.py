@@ -100,7 +100,7 @@ def read_file(mode, args=[], general_prediction_mode=False, test=False, connecti
         if general_prediction_mode:
             df = pd.DataFrame()
             for flexworker, staffingcustomer in zip(args[0], args[1]):
-                df = pd.concat(df, fetch_postgresql_timecards(flexworker, staffingcustomer))
+                df = pd.concat([df, fetch_postgresql_timecards(flexworker, staffingcustomer)])
         else:
             df = fetch_postgresql_timecards(args[0], args[1])
     else:
