@@ -84,6 +84,10 @@ def plot_history(history):
     plt.ylabel('root mean squared error')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
+<<<<<<< HEAD
+=======
+    plt.grid()
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     plt.show()
     # summarize history for loss
     plt.plot(history.history['loss'])
@@ -92,10 +96,18 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
+<<<<<<< HEAD
     plt.show()
 
 
 def store_results(hyperparams, history, results, full_name):
+=======
+    plt.grid()
+    plt.show()
+
+
+def store_results(hyperparams, history, results, full_name, iteration_number):
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     df = pd.DataFrame(columns=['train time', 'layer number', 'input shape', 'output shape', 'layer size',
                                'hidden size', 'learning rate', 'epochs', 'mse train', 'kl train',
                                'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val', 'mae val',
@@ -106,6 +118,7 @@ def store_results(hyperparams, history, results, full_name):
         df[col] = [i]
 
     df = pd.concat([df, results], axis=1)
+<<<<<<< HEAD
     # df.to_excel(f"../../data/results/RNN/{name[0]}{name[2]}_{name[1]}_trial 39.xlsx")
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
@@ -113,13 +126,25 @@ def store_results(hyperparams, history, results, full_name):
 
 
 def store_individual_losses(dict_individual_losses, full_name):
+=======
+    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
+        os.makedirs(f"../../data/results/RNN/{full_name}")
+    df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}i.xlsx")
+
+
+def store_individual_losses(dict_individual_losses, full_name, iteration_number):
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     df_iterative = pd.DataFrame.from_dict(dict_individual_losses)
     df_iterative["train mean"] = df_iterative["train loss"].mean()
     df_iterative["value mean"] = df_iterative["value loss"].mean()
     df_iterative["test mean"] = df_iterative["test loss"].mean()
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
+<<<<<<< HEAD
     df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses 16 (36).xlsx")
+=======
+    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses {iteration_number}i.xlsx")
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
 
 def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler):

@@ -5,6 +5,10 @@ from preprocessing import *
 from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork
 import sys
 from datetime import datetime
+<<<<<<< HEAD
+=======
+import tensorflow as tf
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
 
 def get_savefile_name(mode, model, features):
@@ -12,7 +16,11 @@ def get_savefile_name(mode, model, features):
     if mode == 1: mode_name = 'multivariate_'
     else: mode_name = 'univariate_'
     model_name = model.name + "_"
+<<<<<<< HEAD
     target_name = features[-1]
+=======
+    target_name = "timecardline_amount"
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     full_name = mode_name+model_name+target_name
     return full_name
 
@@ -32,11 +40,21 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         mode = int(sys.argv[1])
+<<<<<<< HEAD
+=======
+        try:
+            start_at = int(sys.argv[2])
+        except Exception as e:
+            print(e)
+
+
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
     '''
     The features considered change depending on the mode, as well as depending on the kinds of data that we want to 
     use for the forecasting of working hours.
     '''
+<<<<<<< HEAD
     if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecardline_amount']
     if mode == 0: FEATURES = ['timecardline_amount']
 
@@ -44,6 +62,15 @@ if __name__ == '__main__':
 
     # Takes the stat analysis path instead of trying to predict and train.
     if mode==2: stat_mode_initialiser(df, split)
+=======
+    if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecard_totalhours', 'timecardline_amount']
+    if mode == 0: FEATURES = ['timecardline_amount']
+
+    df = read_file(connection=connection, store_locally=True)
+
+    # Takes the stat analysis path instead of trying to predict and train.
+    if mode==2: stat_mode_initialiser(df, split, start_at)
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
     '''
     The raw data received in the df is the overall collection of the timesheet data available, with certain size
@@ -74,6 +101,10 @@ if __name__ == '__main__':
         model.compile()
         model.check()
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     '''
     After the statistics have been collected in the traditional way, on the original data format (not the raw one from
     importing from the database), it can then be embedded into a different format in order to make it more accessible
@@ -81,7 +112,12 @@ if __name__ == '__main__':
     separate embedding training network.
     '''
     start = datetime.now()
+<<<<<<< HEAD
     start_at = 36       #11, 13, 15, 18, 20, 21, 30, 31, 36                  # Set as a means to start the training from a different index
+=======
+    #11, 18, 20, 21, 29, 33, 34, 36, 38, 53, 76, 79, 80, 87, 88, 93, 99, 106, 118, 119
+    # Set as a means to start the training from a different index
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     end_at = start_at
     dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
 
@@ -95,17 +131,35 @@ if __name__ == '__main__':
         '''
         if not general_prediction_mode:
             # Pass an argument for saving each model separately
+<<<<<<< HEAD
             model = AdvGRUNeuralNetwork(input_shape, output_shape, gru_size=64)
+=======
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=128)
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
             model.compile()
             model.check()
 
         print(f"\n********************************************************************************************\n"
+<<<<<<< HEAD
               f"                                        Iteration {start_at}:"
               f"\n********************************************************************************************")
 
         if not general_prediction_mode:
 
             df_np, x_test, y_test, x_val, y_val = data_split(df_np, in_win_size, out_win_size, mode)
+=======
+              f"                                        Iteration {cnt}:"
+              f"\n********************************************************************************************")
+
+        if not general_prediction_mode:
+            print(f"full length: {len(df_np)}")
+            df_np, x_test, y_test, x_val, y_val = data_split(df_np, in_win_size, out_win_size, mode)
+            print(f"split lens:\n"
+                  f"df_np: {len(df_np)}\n"
+                  f"x_test: {len(x_test)}\n"
+                  f"x_val: {len(x_val)}\n"
+                  f"total: {len(df_np)+len(x_test)+len(x_val)}")
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
         if mode == 0: x_train, y_train = partition_dataset(df_np, in_win_size, out_win_size)
 
@@ -128,6 +182,7 @@ if __name__ == '__main__':
         if individual:
             df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers[-1])
             dict_individual_losses["train loss"].append(result_values[0])
+<<<<<<< HEAD
             dict_individual_losses["value loss"].append(result_values[5])
             dict_individual_losses["test loss"].append(result_values[10])
             print(f"train loss: {dict_individual_losses['train loss'][-1]}")
@@ -135,6 +190,14 @@ if __name__ == '__main__':
             print(f"test loss: {dict_individual_losses['test loss'][-1]}")
         if start_at == end_at: break
         start_at += 1
+=======
+            dict_individual_losses["value loss"].append(result_values[4])
+            dict_individual_losses["test loss"].append(result_values[8])
+            print(f"train loss: {dict_individual_losses['train loss'][-1]}")
+            print(f"value loss: {dict_individual_losses['value loss'][-1]}")
+            print(f"test loss: {dict_individual_losses['test loss'][-1]}")
+        if cnt == end_at: break
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
     end = datetime.now()
     train_time = (end-start).total_seconds()                                    # Get the training time of the model
@@ -143,7 +206,11 @@ if __name__ == '__main__':
     full_name = get_savefile_name(mode, model, FEATURES)                        # Get the full name for the results
                                                                                 # to be saved
 
+<<<<<<< HEAD
     if individual: store_individual_losses(dict_individual_losses, full_name)   # Store the individual loss collections
+=======
+    if individual: store_individual_losses(dict_individual_losses, full_name, start_at)   # Store the individual loss collections
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
     plot_history(history)
 
@@ -152,4 +219,8 @@ if __name__ == '__main__':
     if not individual: df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test,
                                                                         y_test, scalers[-1])
 
+<<<<<<< HEAD
     store_results(hp, result_values, df_res, full_name)
+=======
+    store_results(hp, result_values, df_res, full_name, start_at)
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370

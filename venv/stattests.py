@@ -81,6 +81,7 @@ def make_lineplot(df):
     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
                  style="assignment_flexworkerid", markers=True)
     plt.show()
+<<<<<<< HEAD
     # try:
     #     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_enddate",
     #                  style="assignment_flexworkerid", markers=True)
@@ -90,6 +91,23 @@ def make_lineplot(df):
 
 
 def general_statistics(df):
+=======
+    try:
+        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_startdate",
+                     style="assignment_flexworkerid", markers=True)
+        plt.show()
+    except:
+        print("One worker is displayed.")
+    try:
+        sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_enddate",
+                     style="assignment_flexworkerid", markers=True)
+        plt.show()
+    except:
+        print("One worker is displayed.")
+
+
+def general_statistics(df, cnt):
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
     # Get an overview of the imported dataframe
 
@@ -122,12 +140,15 @@ def general_statistics(df):
     print("---------------------------------------")
     print("---------------------------------------")
 
+<<<<<<< HEAD
     # Get the median of the numeric values
     print("The median is:")
     print(df.median())
     print("---------------------------------------")
     print("---------------------------------------")
 
+=======
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     # A general description of the numeric variables in the dataset
     print(df.describe())
     print("---------------------------------------")
@@ -145,6 +166,7 @@ def general_statistics(df):
     print("---------------------------------------")
     print("---------------------------------------")
 
+<<<<<<< HEAD
     print(f"Assignment start dates: {df.iloc[:,0].unique()}")
     print(f"Assignment end date: {df.iloc[:,1].unique()}")
     print(f"Assignment component start date: {df.iloc[:,2].unique()}")
@@ -154,6 +176,14 @@ def general_statistics(df):
     print(f"Number of inputs: {df.shape}")
 
     # make_boxplot(df)
+=======
+    print(f"Number of inputs: {df.shape}")
+
+    # make_boxplot(df)
+    print(f"\n----------------------------------------------\n"
+          f"            Input number {cnt}:"
+          f"\n----------------------------------------------")
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
     make_lineplot(df)
 
@@ -165,17 +195,27 @@ def general_statistics(df):
     # print(pd.value_counts(df["Inlener"], normalize=True))
 
 
+<<<<<<< HEAD
 def stat_mode_initialiser(df, split=1):
+=======
+def stat_mode_initialiser(df, split=1, i=0):
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     FEATURES = ['assignment_startdate', 'assignment_enddate', 'quarter', 'weekofyear', 'assignmentcomponent_startdate',
                 'assignmentcomponent_enddate', 'assignment_flexworkerid', 'assignmentcomponent_wage',
                 'staffingcustomer_companyname', 'timecardline_amount']
     print("Using statistic analysis mode")
     print(f"Number of workers considered: {len(df[FEATURES[-3]].unique())}")
     print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
+<<<<<<< HEAD
     df_list = create_subsets(df, FEATURES, split=split, company_split=True)
     histogram_anova=[]
     df_list = fill_gaps(df_list, dt_inputs=True)
     i = 36  # Change this to start the loop sooner or later
+=======
+    df_list = create_subsets(df, FEATURES, split=split, company_split=False)
+    histogram_anova=[]
+    df_list = fill_gaps(df_list, dt_inputs=True)
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     for cnt, df in enumerate(df_list):
         if cnt < i: continue
         print(f"\n**********************************************\n"
@@ -185,7 +225,11 @@ def stat_mode_initialiser(df, split=1):
         print(f"Company: {df[FEATURES[1]][0]}")
         # make_boxplot(df)
         # anova(df, histogram_anova)
+<<<<<<< HEAD
         general_statistics(df)
+=======
+        general_statistics(df, cnt)
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
         
     histogram_anova = np.array(histogram_anova)
     unique_items = np.unique(histogram_anova)

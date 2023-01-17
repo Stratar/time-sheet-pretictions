@@ -241,6 +241,7 @@ class AdvGRUNeuralNetwork:
         self.model._name = "AdvGRU"
         self.name = self.model._name
         self.model.add(tf.keras.layers.InputLayer(in_shape))
+<<<<<<< HEAD
         self.model.add(tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0.2)))
         self.model.add(tf.keras.layers.RepeatVector(out_shape[0]))
         self.model.add(tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0.2,
@@ -249,6 +250,17 @@ class AdvGRUNeuralNetwork:
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
         self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=80)
+=======
+        for i in range(n_layers-1):
+            self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0))
+            self.model.add(tf.keras.layers.RepeatVector(out_shape[0]))
+        self.model.add(tf.keras.layers.GRU(gru_size, dropout=0.2, recurrent_dropout=0,
+                                                                         return_sequences=True))
+        self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=out_shape[1], activation='sigmoid')))
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=150)
+>>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_advgru/', save_best_only=True)
 
     def compile(self):
