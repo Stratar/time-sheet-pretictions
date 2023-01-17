@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import os
+from result_plotter import table_display
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -32,8 +33,8 @@ def res_dataframe(res, y):
     df = pd.DataFrame(columns=['Predictions', 'Actuals'])
     df['Predictions'] = res
     y = y.T
-    df['day'] = y[0].flatten()
-    df['week'] = y[1].flatten()
+    df['day'] = y[0].flatten().astype(int)
+    df['week'] = y[1].flatten().astype(int)
     df['Actuals'] = y[2].flatten()
     return df
 
@@ -99,7 +100,7 @@ def table_export(df, full_name):
     df.to_csv(f"../../data/results/RNN/{full_name}/predictions_{df.loc[0, 'flexworkerid']}_{df.loc[0, 'staffingcustomerid']}.csv")
 
 
-def store_results(hyperparams, history, results, full_name, iteration_number=0): #Remove the iteration number
+def store_results(hyperparams, history, results, full_name, mode, iteration_number=0): #Remove the iteration number
     df = pd.DataFrame(columns=['train time', 'layer number', 'input shape', 'output shape', 'layer size',
                                'hidden size', 'learning rate', 'epochs', 'flexworkerid', 'staffingcustomerid',
                                'mse train', 'kl train', 'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val',
@@ -112,6 +113,9 @@ def store_results(hyperparams, history, results, full_name, iteration_number=0):
     table_export(pd.concat([df['flexworkerid'], df['staffingcustomerid'], results[["Predictions_3", "day_3", "week_3"]]], axis=1), full_name)
 
     df = pd.concat([df, results], axis=1)
+    if mode == 1:
+        table_display(df)
+        exit()
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
     df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}v.xlsx")

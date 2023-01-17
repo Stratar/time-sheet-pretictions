@@ -151,8 +151,8 @@ if __name__ == '__main__':
           f"|*time: {round(time/60, 2)} mins\t|*learning rate: {lr}\t|\n"
           f"---------------------------------------------------------------------------------------------------\n")
 
-    plotter(df)
+    # plotter(df)
     # bar_plotter(df)
-    # table_display(df)
+    table_display(df)
     # sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
     #              style="assignment_flexworkerid", markers=True)

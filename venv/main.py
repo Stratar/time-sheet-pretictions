@@ -12,10 +12,7 @@ import warnings
 warnings.filterwarnings("ignore")
 '''
 TODO:
-* DO IT IN THE FORMAT OF E-UUR: Consider a table where the rows are the days of the week that's being predicted, and the 
-column next to that shows the actual hours worked that day, with the predicted next to it. 
-Table is okay for a start
-Export as a table with 5/6 columns: (scid, fwid, weekno, dayno, prediction)
+* Remove the loads of nan values from the prediction table export.
 
 * General training is slow when loading the fw and sc data. 
 
@@ -28,8 +25,7 @@ Export as a table with 5/6 columns: (scid, fwid, weekno, dayno, prediction)
     are still cases where some days (like case 65) have more than 24 hours worked in a day.
     Consider grouping staffingcustomers together and get the number of active workers per day/week!
     
-* Transfer learning model needs to be trained on reliable data. Train it on the new table, with as few flat values as
-possible.
+* Finish up the prediction mode 
 
 * Clean it up!
     
@@ -42,22 +38,22 @@ possible.
         200, 202
         Semi-Stable (std > mean?): 14, 18, 27, 28(outliers), 30(outliers), 33, 46, 47, 56, 69, 101, 114, 164(outliers), 174(good), 181,
         190, 193
-        Stable:
+        Stable: 1651
         Unrealistic: 65, 73, 87, 112, 118, 125, 134, 136, 143, 151, 154, 155, 162, 165, 169, 171, 179, 181, 189, 193, 196,
         198,
 '''
 
 
-def get_savefile_name(mode, model_name, features, transfer_learning=False, out_win_size=1):
+def get_savefile_name(mode, model_name, fs_pair, transfer_learning=False, out_win_size=1):
     mode_name = ''
-    if mode == 1: mode_name = 'prediction_'
-    elif mode == 3: mode_name = 'training_'
+    if mode == 3 or mode == 1: mode_name = 'training_'
     else: mode_name = 'other_'
     if transfer_learning: model_name = "AdvLSTM_"
     else: model_name = model_name + "_"
     win_name = f"{out_win_size}_"
-    target_name = "timecardline_amount"
-    full_name = mode_name+model_name+win_name+target_name + '.h5'
+    fw_name = f"{fs_pair[0]}_"
+    sc_name = f"{fs_pair[1]}"
+    full_name = mode_name+model_name+win_name + fw_name + sc_name + '.h5'
     return full_name
 
 
@@ -84,7 +80,7 @@ def get_execution_mode(args):
 
         if mode == 1: load_model = True
 
-        if int(args[-1]) < 1000:
+        if int(args[-1]) < 100000:
             index = int(args[-1])
             df_fs = flex_staff_pairs_from_csv()
             return mode, general_training_mode, transfer_learning, load_model, int(df_fs.iloc[index, 0]), \
@@ -93,7 +89,7 @@ def get_execution_mode(args):
         fwid, scid = int(args[-2]), int(args[-1])
         return mode, general_training_mode, transfer_learning, load_model, fwid, scid
 
-    else: raise Exception("Invalid input. Please specify the function: Train, Predict of Statistics")
+    else: raise Exception("Invalid input. Please specify the function: Train, Predict or Statistics")
 
 
 if __name__ == '__main__':
@@ -102,13 +98,16 @@ if __name__ == '__main__':
     and 2: statistic test mode.
     The mode is irrelevant now, what needs to be done is input the flexworkerid and staffingcustomerid that the prediction should be made for
     '''
-
+    # store_flex_staff_table()
     mode, general_training_mode, transfer_learning, load_model, flexworkerid, staffingcustomerid = get_execution_mode(sys.argv)
-    prediction_mode = False
-    if mode == 1: prediction_mode = True
-    connection = True               # Enable if there is a connection to the Akyla database
+    connection = False               # Enable if there is a connection to the Akyla database
     in_win_size = 14                # Control how many days are used for forecasting the working hours
-    out_win_size = 7
+    out_win_size = 1
+
+    n_layers = 5
+    gru_size = 550
+    lstm_size = 550
+    epochs = 350
 
     if general_training_mode:
         df_fs = flex_staff_pairs_from_csv()
@@ -116,30 +115,16 @@ if __name__ == '__main__':
         for _, row in df_fs.iterrows():
             flexworkerid.append(row[0])
             staffingcustomerid.append(row[1])
-
-    # if len(sys.argv) > 1:
-    #     if len(sys.argv) == 3:
-    #         index, mode = int(sys.argv[2]), int(sys.argv[1])
-    #         df_fs = flex_staff_pairs_from_csv()
-    #         flexworkerid, staffingcustomerid = int(df_fs.iloc[index, 0]), int(df_fs.iloc[index, 1])
-    #     elif len(sys.argv) == 2:
-    #         # This looks inefficient
-    #         general_training_mode = True
-    #         df_fs = flex_staff_pairs_from_csv()
-    #         flexworkerid, staffingcustomerid = [], []
-    #         for _, row in df_fs.iterrows():
-    #             flexworkerid.append(row[0])
-    #             staffingcustomerid.append(row[1])
-    #     elif mode == 2 or mode == 3:
-    #         flexworkerid, staffingcustomerid  = int(sys.argv[2]), int(sys.argv[3])
-
-    if mode == 3 or mode == 1: FEATURES = ['is_holiday', 'dayofweek', 'weekofyear', 'active_assignments',
-                                           'timecard_totalhours', 'timecardline_amount']
-    if mode == 0: FEATURES = ['timecardline_amount']
-
+    start = datetime.now()
     df = read_file(mode, [flexworkerid, staffingcustomerid], general_prediction_mode=general_training_mode,
                    connection=connection, store_locally=False)
-    # Takes the stat analysis path instead of trying to predict and train.
+    time_postgres = datetime.now() - start
+    print(f"Loaded from postgres in: {(time_postgres)/60}mins")
+    if mode == 3 or mode == 1: FEATURES = ['dayofweek', 'weekofyear', 'flexworkerids',
+                                           'active_assignments', 'timecardline_amount']
+    # if mode == 3 or mode == 1: FEATURES = ['dayofweek', 'weekofyear', 'is_holiday', 'active_flexworkers',
+    #                                        'active_assignments', 'timecard_totalhours', 'timecardline_amount']
+
     if mode==2: stat_mode_initialiser(df)
 
     '''
@@ -152,8 +137,11 @@ if __name__ == '__main__':
     inconsequentially different types, for the sake of compatibility.
     The data is then converted from a pandas dataframe into a numpy array and scaled between 0 and 1.     
     '''
+    start = datetime.now()
     df_list, scalers = convert_data(df, FEATURES)
 
+    time_preprocessing = datetime.now() - start
+    print(f"Converted data in: {(time_preprocessing)/60}mins")
     '''
     This method is currently trying to create a generalised model that trains and evaluates the model after each
     individual employee input, based on some completely new employee, in this case the last and second-last inputs. 
@@ -163,12 +151,12 @@ if __name__ == '__main__':
     This creates several models trained per employee, where personalised predictions can be made. 
     '''
     input_shape = (in_win_size, len(FEATURES))
-    output_shape = (out_win_size, 1) # The second value reflects how many different variables will be predicted]
+    output_shape = (out_win_size, 1)
 
     if general_training_mode:
 
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
-        model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=3, lstm_size=350) # 16 128
+        model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=n_layers, lstm_size=lstm_size) # 16 128
         model.compile()
         model.check()
     '''
@@ -181,37 +169,44 @@ if __name__ == '__main__':
     dict_individual_losses = {"train loss": [], "value loss": [], "test loss": []}
 
     if load_model and transfer_learning:
-        full_name = get_savefile_name(mode, '', FEATURES, transfer_learning=transfer_learning) # Get the full name for the results
+        full_name = get_savefile_name(mode, '', [flexworkerid, staffingcustomerid], transfer_learning=transfer_learning, out_win_size=out_win_size) # Get the full name for the results
         path = f'saved model weights/{full_name}'
         '''
         Get the generalised model, that's been trained on previously encountered data and extend it with a GRU layer
         for better predictions for the personalised model with few inputs. 
         '''
-        model = TransferNeuralNetwork(input_shape, output_shape, path, n_layers=2, lstm_size=350)
+        model = TransferNeuralNetwork(input_shape, output_shape, path, n_layers=n_layers, lstm_size=lstm_size)
         model.compile()
         model.build()
         model.check()
+    elif load_model:
+        model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size)
+        full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], transfer_learning=transfer_learning, out_win_size=out_win_size) # Get the full name for the results
+        path = f'saved model weights/{full_name}'
+        model.get_model().load_weights(path)
+        model.compile()
+        model.check()
+
     # Start the timer right before the training loop.
     start = datetime.now()
 
     for cnt, df_np in enumerate(df_list):
-        if mode == 1: continue # Might not be necessary
-        df_np_T = np.transpose(df_np)
         if df_np.shape[0] < 63 or np.mean(np.transpose(df_np)[-1]) < 1.75: continue # If the input if too small, it is not possible to train on it. 63 with 14-7 / 45 with 7-7 / 84 with 21-7
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
         each flexworker, without impacting bias from other cases. Individual models should be trained and
         SAVED separately.
         '''
-        if (not general_training_mode) and (not transfer_learning):
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=2, gru_size=450) #16-128 okay
+        if (not general_training_mode) and (not transfer_learning) and not mode == 1:
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size) #16-128 okay, 4-450 better, 4-850
             model.compile()
             model.check()
 
         print(f"\n********************************************************************************************\n"
               f"                                        Iteration {cnt}:"
               f"\n********************************************************************************************")
-
+        print(f"Time to import from postgres: {time_postgres/60} mins.\n"
+              f"Time to pre-process: {time_preprocessing/60} mins")
         if not general_training_mode:
             # Scale each of the data here and add them to a list of scalers to de-scale when needed
             df_np, x_test, y_test, x_val, y_val = data_split(df_np, in_win_size, out_win_size, mode)
@@ -231,8 +226,9 @@ if __name__ == '__main__':
             - Use the same flexworker's data from their work at different companies.
             - Apply some generalised model for forecasting.
         '''
+        if mode == 1: break
         try:
-            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, 1)
+            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, epochs)
         except Exception as e:
             print(f"Exception thrown when trying to fit: {e}")
             continue
@@ -240,19 +236,21 @@ if __name__ == '__main__':
     train_time = (datetime.now()-start).total_seconds()
 
     if not load_model: # The weights are mostly stored when the training of the general, or personal models is complete
-        full_name = get_savefile_name(mode, model.name, FEATURES)  # Get the full name for the results
+        full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], out_win_size=out_win_size)  # Get the full name for the results
         path = f'saved model weights/{full_name}'
         # from the start of the loop to finish
         model.save(path)
 
-    if not prediction_mode or not (mode == 1): plot_history(history) # Not needed for the final version
-    if prediction_mode or  mode == 1: x_train, y_train = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
+    if not (mode == 1): plot_history(history) # Not needed for the final version
+    # if mode == 1:
+    #     x_train, y_train = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
+    #     x_val, y_val = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
     hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs,
           flexworkerid, staffingcustomerid]
 
     df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test,
                                                                         y_test, scalers)
-    store_results(hp, result_values, df_res, full_name[:-3])
+    store_results(hp, result_values, df_res, full_name[:-3], mode)
 
 
 

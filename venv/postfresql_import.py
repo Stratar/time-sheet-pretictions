@@ -3,6 +3,8 @@ from pandas.io.sql import read_sql_query
 '''
 This file is designed to fetch the relevant database 
 More queries needed for specific flexworker and staffingcustomer data generation.
+
+Get one query for the filtered database building and then a join with the active worker variable
 '''
 
 
@@ -33,13 +35,24 @@ cmd_get_staffingcustomer_list = "Select view_staffingcustomerid from (select * f
                                 "timecards.view_staffingcustomerid;"
 
 
-cmd_get_flex_staff_db = "Select assignment_flexworkerid, staffingcustomer_staffingcustomerid from timecardinfo where " \
-                        "assignment_flexworkerid in (select assignment_flexworkerid from timecardinfo where " \
-                        "timecardline_linedate > '2020-01-01' group by assignment_flexworkerid having " \
-                        "(sum(timecardline_amount) > 0 and count(*) > 50) order by count(*) desc limit 200) " \
-                        "group by assignment_flexworkerid, staffingcustomer_staffingcustomerid " \
-                        "having (sum(timecardline_amount) > 0 and count(*) > 50);"
+# cmd_get_flex_staff_db = "Select assignment_flexworkerid, staffingcustomer_staffingcustomerid from timecardinfo_avg_active where " \
+#                         "assignment_flexworkerid in (select assignment_flexworkerid from timecardinfo_avg_active where " \
+#                         "timecardline_linedate > '2020-01-01' group by assignment_flexworkerid having " \
+#                         "(sum(timecardline_amount) > 0 and count(*) > 50) order by count(*) desc limit 200) " \
+#                         "group by assignment_flexworkerid, staffingcustomer_staffingcustomerid " \
+#                         "having (sum(timecardline_amount) > 0 and count(*) > 50);"
 
+cmd_get_flex_staff_db = "Select assignment_flexworkerid, staffingcustomer_staffingcustomerid from timecardinfo_new " \
+                        "group by " \
+                        "assignment_flexworkerid, staffingcustomer_staffingcustomerid " \
+                        "order by " \
+                        "count(*) desc"
+
+# cmd_get_full_db = "select * from timecardinfo_new;"
+cmd_get_full_db = "select * from timecardinfo_new where ((assignment_flexworkerid, staffingcustomer_staffingcustomerid) " \
+                  "in (select assignment_flexworkerid, staffingcustomer_staffingcustomerid from timecardinfo_new " \
+                  "group by assignment_flexworkerid, staffingcustomer_staffingcustomerid having count(*) > 64 " \
+                  "order by count(*) asc limit 11000));"
 
 def connect_to_postgresql_database():
     return psycopg2.connect(dbname='euur_timecards', user='development', password='development',
@@ -74,8 +87,15 @@ def fetch_postgresql_flex_staff_database():
     return flex_staff_db
 
 
+def fetch_postgresql_full_database():
+    conn = connect_to_postgresql_database()
+    full_db = read_sql_query(cmd_get_full_db, conn)
+    conn.close()
+    return full_db
+
+
 def fetch_postgresql_timecards(flexworkerid, staffingcustomerid):
-    cmd_create_specific_dataset = f"select * from timecardinfo where " \
+    cmd_create_specific_dataset = f"select * from timecardinfo_new where " \
                               f"(assignment_flexworkerid = {flexworkerid} and " \
                               f"staffingcustomer_staffingcustomerid = {staffingcustomerid}) " \
                               f"order by timecardline_linedate asc;"

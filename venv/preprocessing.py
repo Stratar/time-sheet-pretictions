@@ -73,7 +73,7 @@ def multi_partition_dataset(data, in_win_size, out_win_size, step=1):
     for i in range(in_win_size, data_len - out_win_size, step):
         row = [r for r in data[i - in_win_size:i]]
         x.append(row)
-        label = [[r[1], r[2], r[-1]] for r in data[i:i + out_win_size]]
+        label = [[r[0], r[1], r[-1]] for r in data[i:i + out_win_size]]
         y.append(label)
 
     n_dims = data.shape[1]
@@ -127,8 +127,8 @@ def convert_and_scale(df_list):
     '''
 
     scalers = []
-    disable = True
-    if not disable:
+    disable = False
+    if disable:
         for category in categories:
             scaler = MinMaxScaler()
             # This is equivalent to doing the reshape(-1, 1) in np.ndarray, but that can handle up to 32 dims, so it crashes
@@ -279,7 +279,7 @@ def get_flex_groups(df, features, store_locally=False, company_split=True):
     return df_list
 
 
-def convert_data(df, features, split=True, legacy=False):
+def convert_data(df, features, legacy=False):
     df_list = create_subsets(df, features)
     # df_list = add_support_variables(df_list)
     '''

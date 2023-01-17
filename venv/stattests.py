@@ -28,17 +28,8 @@ def group_means(df):
     # Group statistics by (a) certain categorical value(s) and get the corresponding means(or other stats if interested)
     print(df.groupby(["Functie", "Inlener", "Flexkracht"]).mean())
     print(df.groupby(["Functie", "Inlener"])["Aantal uren"].sum().unstack().reset_index().fillna(0).set_index("Functie"))
-
-
-def normality_check(df):
-    # Check if normal distribution. If not, try sqrt, cube root, log2, or log10
-    fig = sm.qqplot(df["timecardline_amount"], line='45')
-    plt.show(fig)
-
-
-def distribution_check(df):
     # Get the data distributions
-    fig = sns.displot(df, x="timecardline_amount", hue="staffingcustomer_companyname")
+    fig = sns.displot(df, x="timecardline_amount", hue="staffingcustomer_staffingcustomerid")
     plt.show(fig)
 
 
@@ -78,7 +69,7 @@ def make_boxplot(df):
 
 
 def make_lineplot(df):
-    sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
+    sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="quarter",
                  style="assignment_flexworkerid", markers=True)
     plt.show()
     # try:
@@ -163,12 +154,10 @@ def general_statistics(df, cnt):
 
 
 def stat_mode_initialiser(df, i=0):
-    FEATURES = ['assignment_startdate', 'assignment_enddate', 'quarter', 'weekofyear', 'assignmentcomponent_startdate',
+    FEATURES = ['payrollcomponent', 'flexworkerids', 'quarter', 'weekofyear', 'assignmentcomponent_startdate',
                 'assignmentcomponent_enddate', 'assignment_flexworkerid',
-                'staffingcustomer_companyname', 'timecardline_amount']
+                'staffingcustomer_staffingcustomerid', 'timecard_totalhours', 'timecardline_amount']
     print("Using statistic analysis mode")
-    # print(f"Number of workers considered: {len(df[FEATURES[-3]].unique())}")
-    # print(f"Number of companies considered: {len(df[FEATURES[-2]].unique())}")
     df_list = create_subsets(df, FEATURES)
     histogram_anova=[]
     # df_list = fill_gaps(df_list, dt_inputs=True)
