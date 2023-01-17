@@ -1,5 +1,9 @@
 import pandas as pd
-from postfresql_import import fetch_postgresql_database
+from postfresql_import import fetch_postgresql_database, fetch_postgresql_flexworkers, \
+    fetch_postgresql_staffingcustomers, fetch_postgresql_flex_staff_database, fetch_postgresql_timecards, \
+    fetch_postgresql_full_database
+import numpy as np
+from datetime import datetime
 
 '''
 For the initial testing, EXCEL files downloaded from the demo site are used, which are not reliable.
@@ -29,6 +33,12 @@ def database_from_excel():
     return df
 
 
+def flex_staff_pairs_from_csv():
+    df = pd.read_csv("../../data/edited data/flex_staff.csv")
+    df = df.drop(columns=df.columns[0])
+    return df
+
+
 def database_from_csv():
     df = pd.read_csv("../../data/edited data/worker_big_db_export.csv")
     return df
@@ -54,7 +64,25 @@ def create_date_features(df):
     return df
 
 
-def read_file(test=False, connection=True, store_locally=False):
+def store_flexworkers():
+    flexworkers = fetch_postgresql_flexworkers()
+    np.savetxt(r"../../data/edited data/flexworkers.txt", flexworkers.values, fmt='%s')
+    exit()
+
+
+def store_staffingcustomers():
+    staffingcustomers = fetch_postgresql_staffingcustomers()
+    np.savetxt(r"../../data/edited data/staffingcustomers.txt", staffingcustomers.values, fmt='%s')
+    exit()
+
+
+def store_flex_staff_table():
+    staffingcustomers = fetch_postgresql_flex_staff_database()
+    staffingcustomers.to_csv("../../data/edited data/flex_staff.csv")
+    exit()
+
+
+def read_file(mode, args=[], general_prediction_mode=False, test=False, connection=True, store_locally=True):
     # Set some options for displaying the data through pandas
 
     pd.set_option('display.max_rows', 500)
@@ -67,13 +95,15 @@ def read_file(test=False, connection=True, store_locally=False):
     depending on their impact on the prediction.
     Removed: Plaatsing (ID/CODE), Datum, Flexkracht, Urensoort
     I have not yet checked anything with Periodenummer
-    
-    THIS WAS VALID FOR THE EXCEL IMPORT, NOT THE DATABASE IMPORT!!!!!!!
     '''
-    if connection:
-        df = fetch_postgresql_database()
+    if connection and (mode == 3 or mode == 2 or mode == 1):
+        if general_prediction_mode:
+            df = fetch_postgresql_full_database()
+            # for flexworker, staffingcustomer in zip(args[0], args[1]):
+            #     df = pd.concat([df, fetch_postgresql_timecards(flexworker, staffingcustomer)])
+        else:
+            df = fetch_postgresql_timecards(args[0], args[1])
     else:
-        # df = database_from_excel()
         df = database_from_csv()
     if test:
         df = test_database_from_csv()
@@ -84,6 +114,9 @@ def read_file(test=False, connection=True, store_locally=False):
     if store_locally:
         # The csv is not very clear for people to read, but it is the only way to store such large amounts of data
         # could be redundant, but keep in case of no internet connection.
+        start = datetime.now()
         df.to_csv("../../data/edited data/worker_big_db_export.csv")
+        time_export = datetime.now() - start
+        print(f"Exported to csv in: {time_export/60} mins")
 
     return df

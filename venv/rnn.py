@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import os
+from result_plotter import table_display
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -28,35 +29,26 @@ def scale_data(d):
 from sklearn.metrics import mean_squared_error as mse
 
 
-def predict(model, X):
-    predictions = []
-    for _ in range(10):
-        if len(predictions) == 0:
-            predictions = model.predict(X).flatten()
-        else:
-            new_prediction = model.predict(X)
-            predictions = [x + y for x, y in zip(predictions, new_prediction.flatten())]
-        # df = pd.DataFrame(data={'Predictions':predictions, 'Actuals':y})
-    '''This line aligns the model predictions better with the actual data'''
-    predictions = np.delete(np.roll(np.array(predictions) / 10, -1), -1)
-    return predictions
-
-
 def res_dataframe(res, y):
     df = pd.DataFrame(columns=['Predictions', 'Actuals'])
     df['Predictions'] = res
-    df['Actuals'] = y
+    y = y.T
+    df['day'] = y[0].flatten().astype(int)
+    df['week'] = y[1].flatten().astype(int)
+    df['Actuals'] = y[2].flatten()
     return df
 
 
-def plot_predictions(model, X, y, scaler, start=0, end=150, show_plots=False):
+def plot_predictions(model, X, y, scalers, start=0, end=150, show_plots=True):
+    time_shape = y.shape[1]
+    df = res_dataframe(model.predict(X).flatten(), y) # Could remove the flatten
+    # df = res_dataframe(model.predict(X).flatten(), y.flatten()) # Could remove the flatten
+    y.T[-1] = scalers[-1][-1].inverse_transform(np.array(y.T[-1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
+    y.T[0] = scalers[-1][0].inverse_transform(np.array(y.T[0].flatten()).reshape(-1,1)).reshape(time_shape,-1)
+    y.T[1] = scalers[-1][1].inverse_transform(np.array(y.T[1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
 
-    predictions = scaler.inverse_transform(model.predict(X).reshape(-1,1)).reshape(1,-1)[0]
-    # predictions = scaler.inverse_transform(predict(model, X).reshape(-1,1)).reshape(1,-1)[0]
-    # predictions = model.predict(X).reshape(1,-1)[0]
-    # y = scaler.inverse_transform(np.array(y).reshape(-1,1)).flatten()[:-1]
-    y = scaler.inverse_transform(np.array(y).reshape(-1,1)).flatten()
-    # y = np.array(y).reshape(1,-1)[0]
+    # Scaling the predictions seems problematic
+    predictions = scalers[-1][-1].inverse_transform(model.predict(X).reshape(-1,1)).flatten() # Try to scale with x scaler
     df = res_dataframe(predictions, y)
     if show_plots:
         plt.plot(df['Predictions'][start:end])
@@ -68,12 +60,12 @@ def plot_predictions(model, X, y, scaler, start=0, end=150, show_plots=False):
         plt.grid()
         plt.show()
     kl = KLDivergence()
-    kl.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
+    kl.update_state(scale_data(y.T[-1].reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
     rmse = RootMeanSquaredError()
-    rmse.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
+    rmse.update_state(scale_data(y.T[-1].reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
     mae = MeanAbsoluteError()
-    mae.update_state(scale_data(y.reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
-    return df, mse(y, predictions), kl.result().numpy(), rmse.result().numpy(), mae.result().numpy()
+    mae.update_state(scale_data(y.T[-1].reshape(-1,1)), scale_data(predictions.reshape(-1,1)))
+    return df, mse(y.T[-1].flatten(), predictions), kl.result().numpy(), rmse.result().numpy(), mae.result().numpy()
 
 
 def plot_history(history):
@@ -84,10 +76,7 @@ def plot_history(history):
     plt.ylabel('root mean squared error')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
-<<<<<<< HEAD
-=======
     plt.grid()
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     plt.show()
     # summarize history for loss
     plt.plot(history.history['loss'])
@@ -96,67 +85,62 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
-<<<<<<< HEAD
-    plt.show()
-
-
-def store_results(hyperparams, history, results, full_name):
-=======
     plt.grid()
     plt.show()
 
 
-def store_results(hyperparams, history, results, full_name, iteration_number):
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
+def table_export(df, full_name):
+    # df = df.reset_index(drop=True)
+    # df.loc[:,["Predictions_3"]].dropna(inplace=True)
+    df.loc[:, 'flexworkerid'] = df.loc[0, 'flexworkerid']
+    df.loc[:, 'staffingcustomerid'] = df.loc[0, 'staffingcustomerid']
+    df.loc[:, 'Predictions_3'] = df.loc[:, 'Predictions_3'].apply(lambda x:x*2).round().apply(lambda x:x/2)
+    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
+        os.makedirs(f"../../data/results/RNN/{full_name}")
+    df.to_csv(f"../../data/results/RNN/{full_name}/predictions_{df.loc[0, 'flexworkerid']}_{df.loc[0, 'staffingcustomerid']}.csv")
+
+
+def store_results(hyperparams, history, results, full_name, mode, iteration_number=0): #Remove the iteration number
     df = pd.DataFrame(columns=['train time', 'layer number', 'input shape', 'output shape', 'layer size',
-                               'hidden size', 'learning rate', 'epochs', 'mse train', 'kl train',
-                               'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val', 'mae val',
-                               'mse test', 'kl test', 'rmse test', 'mae test'])
+                               'hidden size', 'learning rate', 'epochs', 'flexworkerid', 'staffingcustomerid',
+                               'mse train', 'kl train', 'rmse train', 'mae train', 'mse val', 'kl val', 'rmse val',
+                               'mae val', 'mse test', 'kl test', 'rmse test', 'mae test'])
     list = hyperparams + history
 
     for col, i in zip(df, list):
         df[col] = [i]
 
+    table_export(pd.concat([df['flexworkerid'], df['staffingcustomerid'], results[["Predictions_3", "day_3", "week_3"]]], axis=1), full_name)
+
     df = pd.concat([df, results], axis=1)
-<<<<<<< HEAD
-    # df.to_excel(f"../../data/results/RNN/{name[0]}{name[2]}_{name[1]}_trial 39.xlsx")
+    if mode == 1:
+        table_display(df)
+        exit()
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
-    df.to_excel(f"../../data/results/RNN/{full_name}/ 15 (36).xlsx")
+    df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}v.xlsx")
+    print(f"Stored as: ../../data/results/RNN/{full_name}/{iteration_number}v.xlsx")
 
 
-def store_individual_losses(dict_individual_losses, full_name):
-=======
-    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
-        os.makedirs(f"../../data/results/RNN/{full_name}")
-    df.to_excel(f"../../data/results/RNN/{full_name}/{iteration_number}i.xlsx")
+def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers):
 
-
-def store_individual_losses(dict_individual_losses, full_name, iteration_number):
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
-    df_iterative = pd.DataFrame.from_dict(dict_individual_losses)
-    df_iterative["train mean"] = df_iterative["train loss"].mean()
-    df_iterative["value mean"] = df_iterative["value loss"].mean()
-    df_iterative["test mean"] = df_iterative["test loss"].mean()
-    if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
-        os.makedirs(f"../../data/results/RNN/{full_name}")
-<<<<<<< HEAD
-    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses 16 (36).xlsx")
-=======
-    df_iterative.to_excel(f"../../data/results/RNN/{full_name}/losses {iteration_number}i.xlsx")
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
-
-
-def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scaler):
-
-    res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scaler)
+    res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scalers[0:2])
     print(mse_train, kl_train, rmse_train, mae_train)
-    res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scaler)
+    res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scalers[2:4])
     print(mse_val, kl_val, rmse_val, mae_val)
-    res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scaler)
+    res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scalers[4:])
     print(mse_test, kl_test, rmse_test, mae_test)
 
     df_res = pd.concat([res_train, res_val, res_test], axis=1)
+    cols = []
+    col_dict = {"Predictions": 1, "Actuals": 1, "day": 1, "week": 1}
+    for column in df_res.columns:
+        if column in col_dict.keys():
+            cols.append(f'{column}_{col_dict[column]}')
+            col_dict[column] += 1
+            continue
+        cols.append(column)
+    df_res.columns = cols
     result_values = [mse_train, kl_train, rmse_train, mae_train, mse_val, kl_val, rmse_val, mae_val,
                      mse_test, kl_test, rmse_test, mae_test]
     return df_res, result_values

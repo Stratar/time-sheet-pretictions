@@ -1,76 +1,131 @@
-from file_reader import read_file
+import numpy as np
+from file_reader import read_file, store_flexworkers, store_staffingcustomers,store_flex_staff_table, flex_staff_pairs_from_csv
 from stattests import stat_mode_initialiser
-from rnn import store_results, plot_history, run_and_plot_predictions, store_individual_losses
+from rnn import store_results, plot_history, run_and_plot_predictions
 from preprocessing import *
-from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork
+from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork, TransferNeuralNetwork
 import sys
 from datetime import datetime
-<<<<<<< HEAD
-=======
 import tensorflow as tf
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
+import warnings
+
+warnings.filterwarnings("ignore")
+'''
+TODO:
+* Remove the loads of nan values from the prediction table export.
+
+* General training is slow when loading the fw and sc data. 
+
+* Experiment for better predictions:
+    - Batch sizes
+    - Layers (Too many layers may be counter-productive): 3 - are okay More usually lead to zero results
+    - Nodes: 1000 performs more or less the same as 800 
+    - Learning Rates
+    - Better pre-processing, use statistical quartile filters, mostly for median > 1, as well as outlier trimming, there
+    are still cases where some days (like case 65) have more than 24 hours worked in a day.
+    Consider grouping staffingcustomers together and get the number of active workers per day/week!
+    
+* Finish up the prediction mode 
+
+* Clean it up!
+    
+    Candidates: 6(erratic), 7(variable), 8(erratic), 9(variable), 13(erratic), 14(semi-stable), 15(erratic), 17(variable)
+    
+        Erratic: 6, 8, 13, 15, 20(outliers), 23, 25, 36, 37, 39, 41, 61, 62, 64, 65(unrealistic), 67, 71, 72, 83,
+        86, 88, 90, 93, 96, 109, 112(unrealistic), 120, 130, 138, 142, 173, 189, 204
+        Variable: 7, 9, 17, 21(few), 22, 44, 50(semi), 51(semi), 52(semi), 55(semi), 59, 66, 73(unrealistic), 74,
+        100, 103, 108, 113, 136(unrealistic), 137, 144, 152, 157, 165(outliers), 169(unrealistic), 184, 187, 188, 196,
+        200, 202
+        Semi-Stable (std > mean?): 14, 18, 27, 28(outliers), 30(outliers), 33, 46, 47, 56, 69, 101, 114, 164(outliers), 174(good), 181,
+        190, 193
+        Stable: 1651
+        Unrealistic: 65, 73, 87, 112, 118, 125, 134, 136, 143, 151, 154, 155, 162, 165, 169, 171, 179, 181, 189, 193, 196,
+        198,
+'''
 
 
-def get_savefile_name(mode, model, features):
+def get_savefile_name(mode, model_name, fs_pair, transfer_learning=False, out_win_size=1):
     mode_name = ''
-    if mode == 1: mode_name = 'multivariate_'
-    else: mode_name = 'univariate_'
-    model_name = model.name + "_"
-<<<<<<< HEAD
-    target_name = features[-1]
-=======
-    target_name = "timecardline_amount"
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
-    full_name = mode_name+model_name+target_name
+    if mode == 3 or mode == 1: mode_name = 'training_'
+    else: mode_name = 'other_'
+    if transfer_learning: model_name = "AdvLSTM_"
+    else: model_name = model_name + "_"
+    win_name = f"{out_win_size}_"
+    fw_name = f"{fs_pair[0]}_"
+    sc_name = f"{fs_pair[1]}"
+    full_name = mode_name+model_name+win_name + fw_name + sc_name + '.h5'
     return full_name
+
+
+def get_execution_mode(args):
+
+    if len(args) > 5 or len(args) < 1:
+        raise Exception("The input provided was insufficient to continue with the execution.")
+        exit()
+
+    general_training_mode = False   # Controls whether the predictions will be made for each specific worker, or general
+    load_model = False              # If evaluation mode or transfer learning
+    transfer_learning = False
+
+    mode_dict = {"train": 3, "statistics": 2, "predict": 1}
+    train_dict = {"general": 1, "transfer": 2}
+
+    if args[1] in mode_dict.keys():
+        mode = mode_dict[args[1]]
+        if mode == 3 and args[2] in train_dict:
+            if train_dict[args[2]] == 1: return mode, True, None, None, None, None
+            elif train_dict[args[2]] == 2: transfer_learning, load_model = True, True
+            else: raise Exception("Invalid train command given. Specify if it is \'transfer\', \'general\' or give the "
+                              "corresponding flexworkerid - staffincustomerid pair.")
+
+        if mode == 1: load_model = True
+
+        if int(args[-1]) < 100000:
+            index = int(args[-1])
+            df_fs = flex_staff_pairs_from_csv()
+            return mode, general_training_mode, transfer_learning, load_model, int(df_fs.iloc[index, 0]), \
+                   int(df_fs.iloc[index, 1])
+
+        fwid, scid = int(args[-2]), int(args[-1])
+        return mode, general_training_mode, transfer_learning, load_model, fwid, scid
+
+    else: raise Exception("Invalid input. Please specify the function: Train, Predict or Statistics")
 
 
 if __name__ == '__main__':
     '''
     A way of making the program swap between univariate and multivariate approaches. 0: univariate, 1: multivariate
     and 2: statistic test mode.
+    The mode is irrelevant now, what needs to be done is input the flexworkerid and staffingcustomerid that the prediction should be made for
     '''
-    mode = 1
-    split = 1                       # Split the data according to employees and their individual companies they work for
-    individual = True               # Checks whether each worker is going to be trained separately, or all together MIGHT BE REDUNDANT AND CAN USE genenral_prediction_mode instead
+    # store_flex_staff_table()
+    mode, general_training_mode, transfer_learning, load_model, flexworkerid, staffingcustomerid = get_execution_mode(sys.argv)
     connection = False               # Enable if there is a connection to the Akyla database
-    general_prediction_mode = False # Controls whether the predictions will be made for each specific worker, or general
-    in_win_size = 14                 # Control how many days are used for forecasting the working hours
-    out_win_size = 1                # Controls how many days in advance the
+    in_win_size = 14                # Control how many days are used for forecasting the working hours
+    out_win_size = 1
 
-    if len(sys.argv) > 1:
-        mode = int(sys.argv[1])
-<<<<<<< HEAD
-=======
-        try:
-            start_at = int(sys.argv[2])
-        except Exception as e:
-            print(e)
+    n_layers = 5
+    gru_size = 550
+    lstm_size = 550
+    epochs = 350
 
+    if general_training_mode:
+        df_fs = flex_staff_pairs_from_csv()
+        flexworkerid, staffingcustomerid = [], []
+        for _, row in df_fs.iterrows():
+            flexworkerid.append(row[0])
+            staffingcustomerid.append(row[1])
+    start = datetime.now()
+    df = read_file(mode, [flexworkerid, staffingcustomerid], general_prediction_mode=general_training_mode,
+                   connection=connection, store_locally=False)
+    time_postgres = datetime.now() - start
+    print(f"Loaded from postgres in: {(time_postgres)/60}mins")
+    if mode == 3 or mode == 1: FEATURES = ['dayofweek', 'weekofyear', 'flexworkerids',
+                                           'active_assignments', 'timecardline_amount']
+    # if mode == 3 or mode == 1: FEATURES = ['dayofweek', 'weekofyear', 'is_holiday', 'active_flexworkers',
+    #                                        'active_assignments', 'timecard_totalhours', 'timecardline_amount']
 
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
-
-    '''
-    The features considered change depending on the mode, as well as depending on the kinds of data that we want to 
-    use for the forecasting of working hours.
-    '''
-<<<<<<< HEAD
-    if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecardline_amount']
-    if mode == 0: FEATURES = ['timecardline_amount']
-
-    df = read_file(connection=connection, store_locally=False)
-
-    # Takes the stat analysis path instead of trying to predict and train.
-    if mode==2: stat_mode_initialiser(df, split)
-=======
-    if mode == 1: FEATURES = ['dayofweek', 'dayofyear', 'weekofyear', 'timecard_totalhours', 'timecardline_amount']
-    if mode == 0: FEATURES = ['timecardline_amount']
-
-    df = read_file(connection=connection, store_locally=True)
-
-    # Takes the stat analysis path instead of trying to predict and train.
-    if mode==2: stat_mode_initialiser(df, split, start_at)
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
+    if mode==2: stat_mode_initialiser(df)
 
     '''
     The raw data received in the df is the overall collection of the timesheet data available, with certain size
@@ -82,8 +137,11 @@ if __name__ == '__main__':
     inconsequentially different types, for the sake of compatibility.
     The data is then converted from a pandas dataframe into a numpy array and scaled between 0 and 1.     
     '''
-    df_list, scalers = convert_data(df, FEATURES, split)
+    start = datetime.now()
+    df_list, scalers = convert_data(df, FEATURES)
 
+    time_preprocessing = datetime.now() - start
+    print(f"Converted data in: {(time_preprocessing)/60}mins")
     '''
     This method is currently trying to create a generalised model that trains and evaluates the model after each
     individual employee input, based on some completely new employee, in this case the last and second-last inputs. 
@@ -93,77 +151,72 @@ if __name__ == '__main__':
     This creates several models trained per employee, where personalised predictions can be made. 
     '''
     input_shape = (in_win_size, len(FEATURES))
-    output_shape = (out_win_size, 1) # The second value reflects how many different variables will be predicted
+    output_shape = (out_win_size, 1)
 
-    if general_prediction_mode:
+    if general_training_mode:
+
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
-        model = AdvLSTMNeuralNetwork(input_shape, output_shape, lstm_size=64)
+        model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=n_layers, lstm_size=lstm_size) # 16 128
         model.compile()
         model.check()
-
-<<<<<<< HEAD
-=======
-
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
     '''
     After the statistics have been collected in the traditional way, on the original data format (not the raw one from
     importing from the database), it can then be embedded into a different format in order to make it more accessible
     for a neural network to work with. This process requires the embeddings to be generated through an entirely
     separate embedding training network.
     '''
+
+    dict_individual_losses = {"train loss": [], "value loss": [], "test loss": []}
+
+    if load_model and transfer_learning:
+        full_name = get_savefile_name(mode, '', [flexworkerid, staffingcustomerid], transfer_learning=transfer_learning, out_win_size=out_win_size) # Get the full name for the results
+        path = f'saved model weights/{full_name}'
+        '''
+        Get the generalised model, that's been trained on previously encountered data and extend it with a GRU layer
+        for better predictions for the personalised model with few inputs. 
+        '''
+        model = TransferNeuralNetwork(input_shape, output_shape, path, n_layers=n_layers, lstm_size=lstm_size)
+        model.compile()
+        model.build()
+        model.check()
+    elif load_model:
+        model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size)
+        full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], transfer_learning=transfer_learning, out_win_size=out_win_size) # Get the full name for the results
+        path = f'saved model weights/{full_name}'
+        model.get_model().load_weights(path)
+        model.compile()
+        model.check()
+
+    # Start the timer right before the training loop.
     start = datetime.now()
-<<<<<<< HEAD
-    start_at = 36       #11, 13, 15, 18, 20, 21, 30, 31, 36                  # Set as a means to start the training from a different index
-=======
-    #11, 18, 20, 21, 29, 33, 34, 36, 38, 53, 76, 79, 80, 87, 88, 93, 99, 106, 118, 119
-    # Set as a means to start the training from a different index
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
-    end_at = start_at
-    dict_individual_losses = {"train loss":[], "value loss":[], "test loss": []}
 
     for cnt, df_np in enumerate(df_list):
-        if cnt < start_at:continue
-
+        if df_np.shape[0] < 63 or np.mean(np.transpose(df_np)[-1]) < 1.75: continue # If the input if too small, it is not possible to train on it. 63 with 14-7 / 45 with 7-7 / 84 with 21-7
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
         each flexworker, without impacting bias from other cases. Individual models should be trained and
         SAVED separately.
         '''
-        if not general_prediction_mode:
-            # Pass an argument for saving each model separately
-<<<<<<< HEAD
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, gru_size=64)
-=======
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=3, gru_size=128)
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
+        if (not general_training_mode) and (not transfer_learning) and not mode == 1:
+            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size) #16-128 okay, 4-450 better, 4-850
             model.compile()
             model.check()
 
         print(f"\n********************************************************************************************\n"
-<<<<<<< HEAD
-              f"                                        Iteration {start_at}:"
-              f"\n********************************************************************************************")
-
-        if not general_prediction_mode:
-
-            df_np, x_test, y_test, x_val, y_val = data_split(df_np, in_win_size, out_win_size, mode)
-=======
               f"                                        Iteration {cnt}:"
               f"\n********************************************************************************************")
-
-        if not general_prediction_mode:
-            print(f"full length: {len(df_np)}")
+        print(f"Time to import from postgres: {time_postgres/60} mins.\n"
+              f"Time to pre-process: {time_preprocessing/60} mins")
+        if not general_training_mode:
+            # Scale each of the data here and add them to a list of scalers to de-scale when needed
             df_np, x_test, y_test, x_val, y_val = data_split(df_np, in_win_size, out_win_size, mode)
-            print(f"split lens:\n"
-                  f"df_np: {len(df_np)}\n"
-                  f"x_test: {len(x_test)}\n"
-                  f"x_val: {len(x_val)}\n"
-                  f"total: {len(df_np)+len(x_test)+len(x_val)}")
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
 
         if mode == 0: x_train, y_train = partition_dataset(df_np, in_win_size, out_win_size)
 
-        elif mode == 1: x_train, y_train = multi_partition_dataset(df_np, in_win_size, out_win_size)
+        elif mode == 1 or mode==3: x_train, y_train = multi_partition_dataset(df_np, in_win_size, out_win_size)
+
+        # scaler is useful to see the original data again after
+        x_train, y_train, x_val, y_val, x_test, y_test, scalers = data_scaler([x_train, y_train, x_val, y_val, x_test, y_test])
 
         '''
         There are cases where the model fit receives empty inputs, therefore cannot properly proceed and should thus be
@@ -173,54 +226,31 @@ if __name__ == '__main__':
             - Use the same flexworker's data from their work at different companies.
             - Apply some generalised model for forecasting.
         '''
+        if mode == 1: break
         try:
-            history = model.fit(x_train, y_train, x_val, y_val, 500)
+            history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, epochs)
         except Exception as e:
-            print(f"Exception thrown: {e}")
+            print(f"Exception thrown when trying to fit: {e}")
             continue
 
-        if individual:
-            df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers[-1])
-            dict_individual_losses["train loss"].append(result_values[0])
-<<<<<<< HEAD
-            dict_individual_losses["value loss"].append(result_values[5])
-            dict_individual_losses["test loss"].append(result_values[10])
-            print(f"train loss: {dict_individual_losses['train loss'][-1]}")
-            print(f"value loss: {dict_individual_losses['value loss'][-1]}")
-            print(f"test loss: {dict_individual_losses['test loss'][-1]}")
-        if start_at == end_at: break
-        start_at += 1
-=======
-            dict_individual_losses["value loss"].append(result_values[4])
-            dict_individual_losses["test loss"].append(result_values[8])
-            print(f"train loss: {dict_individual_losses['train loss'][-1]}")
-            print(f"value loss: {dict_individual_losses['value loss'][-1]}")
-            print(f"test loss: {dict_individual_losses['test loss'][-1]}")
-        if cnt == end_at: break
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
+    train_time = (datetime.now()-start).total_seconds()
 
-    end = datetime.now()
-    train_time = (end-start).total_seconds()                                    # Get the training time of the model
-                                                                                # from the start of the loop to finish
+    if not load_model: # The weights are mostly stored when the training of the general, or personal models is complete
+        full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], out_win_size=out_win_size)  # Get the full name for the results
+        path = f'saved model weights/{full_name}'
+        # from the start of the loop to finish
+        model.save(path)
 
-    full_name = get_savefile_name(mode, model, FEATURES)                        # Get the full name for the results
-                                                                                # to be saved
+    if not (mode == 1): plot_history(history) # Not needed for the final version
+    # if mode == 1:
+    #     x_train, y_train = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
+    #     x_val, y_val = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
+    hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs,
+          flexworkerid, staffingcustomerid]
 
-<<<<<<< HEAD
-    if individual: store_individual_losses(dict_individual_losses, full_name)   # Store the individual loss collections
-=======
-    if individual: store_individual_losses(dict_individual_losses, full_name, start_at)   # Store the individual loss collections
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
+    df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test,
+                                                                        y_test, scalers)
+    store_results(hp, result_values, df_res, full_name[:-3], mode)
 
-    plot_history(history)
 
-    hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs]
 
-    if not individual: df_res, result_values = run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test,
-                                                                        y_test, scalers[-1])
-
-<<<<<<< HEAD
-    store_results(hp, result_values, df_res, full_name)
-=======
-    store_results(hp, result_values, df_res, full_name, start_at)
->>>>>>> ac242c60a2233f4c9408a922c1e6f2c1b8c14370
