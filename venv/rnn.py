@@ -39,16 +39,20 @@ def res_dataframe(res, y):
     return df
 
 
-def plot_predictions(model, X, y, scalers, start=0, end=150, show_plots=True):
+def plot_predictions(model, X, y, scalers=[], start=0, end=150, show_plots=True):
     time_shape = y.shape[1]
     df = res_dataframe(model.predict(X).flatten(), y) # Could remove the flatten
     # df = res_dataframe(model.predict(X).flatten(), y.flatten()) # Could remove the flatten
-    y.T[-1] = scalers[-1][-1].inverse_transform(np.array(y.T[-1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
-    y.T[0] = scalers[-1][0].inverse_transform(np.array(y.T[0].flatten()).reshape(-1,1)).reshape(time_shape,-1)
-    y.T[1] = scalers[-1][1].inverse_transform(np.array(y.T[1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
+    if len(scalers) !=0:
+        y.T[-1] = scalers[-1][-1].inverse_transform(np.array(y.T[-1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
+        y.T[0] = scalers[-1][0].inverse_transform(np.array(y.T[0].flatten()).reshape(-1,1)).reshape(time_shape,-1)
+        y.T[1] = scalers[-1][1].inverse_transform(np.array(y.T[1].flatten()).reshape(-1,1)).reshape(time_shape,-1)
 
-    # Scaling the predictions seems problematic
-    predictions = scalers[-1][-1].inverse_transform(model.predict(X).reshape(-1,1)).flatten() # Try to scale with x scaler
+        # Scaling the predictions seems problematic
+        predictions = scalers[-1][-1].inverse_transform(model.predict(X).reshape(-1,1)).flatten() # Try to scale with x scaler
+    else:
+        predictions = model.predict(X).flatten()
+
     df = res_dataframe(predictions, y)
     if show_plots:
         plt.plot(df['Predictions'][start:end])
@@ -95,6 +99,7 @@ def table_export(df, full_name):
     df.loc[:, 'flexworkerid'] = df.loc[0, 'flexworkerid']
     df.loc[:, 'staffingcustomerid'] = df.loc[0, 'staffingcustomerid']
     df.loc[:, 'Predictions_3'] = df.loc[:, 'Predictions_3'].apply(lambda x:x*2).round().apply(lambda x:x/2)
+    print(df)
     if not os.path.isdir(f"../../data/results/RNN/{full_name}"):
         os.makedirs(f"../../data/results/RNN/{full_name}")
     df.to_csv(f"../../data/results/RNN/{full_name}/predictions_{df.loc[0, 'flexworkerid']}_{df.loc[0, 'staffingcustomerid']}.csv")
@@ -109,9 +114,13 @@ def store_results(hyperparams, history, results, full_name, mode, iteration_numb
 
     for col, i in zip(df, list):
         df[col] = [i]
-
-    table_export(pd.concat([df['flexworkerid'], df['staffingcustomerid'], results[["Predictions_3", "day_3", "week_3"]]], axis=1), full_name)
-
+    res_store = results[["Predictions_3", "day_3", "week_3"]]
+    res_store.dropna(inplace=True)
+    df['flexworkerid'].iloc[:len(res_store)] = df['flexworkerid'].iloc[-1][-1]
+    df['staffingcustomerid'].iloc[:len(res_store)] = df['staffingcustomerid'].iloc[-1][-1]
+    table_export(pd.concat([df[['flexworkerid']], df[['staffingcustomerid']], res_store], axis=1), full_name)
+    df['flexworkerid'].dropna(inplace=True)
+    df['staffingcustomerid'].dropna(inplace=True)
     df = pd.concat([df, results], axis=1)
     if mode == 1:
         table_display(df)
@@ -124,11 +133,14 @@ def store_results(hyperparams, history, results, full_name, mode, iteration_numb
 
 def run_and_plot_predictions(model, x_train, y_train, x_val, y_val, x_test, y_test, scalers):
 
-    res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scalers[0:2])
+    # res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train, scalers[0:2])
+    res_train, mse_train, kl_train, rmse_train, mae_train = plot_predictions(model, x_train, y_train)
     print(mse_train, kl_train, rmse_train, mae_train)
-    res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scalers[2:4])
+    # res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val, scalers[2:4])
+    res_val, mse_val, kl_val, rmse_val, mae_val = plot_predictions(model, x_val, y_val)
     print(mse_val, kl_val, rmse_val, mae_val)
-    res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scalers[4:])
+    # res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test, scalers[4:])
+    res_test, mse_test, kl_test, rmse_test, mae_test = plot_predictions(model, x_test, y_test)
     print(mse_test, kl_test, rmse_test, mae_test)
 
     df_res = pd.concat([res_train, res_val, res_test], axis=1)
