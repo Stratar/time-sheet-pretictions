@@ -3,7 +3,7 @@ from file_reader import read_file, store_flexworkers, store_staffingcustomers,st
 from stattests import stat_mode_initialiser
 from rnn import store_results, plot_history, run_and_plot_predictions
 from preprocessing import *
-from neuralnet import GRUNeuralNetwork, ConvolutionalNeuralNetwork, AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork, TransferNeuralNetwork
+from neuralnet import AdvGRUNeuralNetwork, AdvLSTMNeuralNetwork, TransferNeuralNetwork, SemiTransformer
 import sys
 from datetime import datetime
 import tensorflow as tf
@@ -41,18 +41,27 @@ TODO:
         Stable: 1651
         Unrealistic: 65, 73, 87, 112, 118, 125, 134, 136, 143, 151, 154, 155, 162, 165, 169, 171, 179, 181, 189, 193, 196,
         198,
+        
+        What do the predictions mean?
+        Represent it appropriately in the presentation as table
+        Measure average deviation
+        
 '''
 
 
-def get_savefile_name(mode, model_name, fs_pair, transfer_learning=False, out_win_size=1):
+def get_savefile_name(mode, model_name, fs_pair, transfer_learning=False, general_mode=True, out_win_size=1):
     mode_name = ''
     if mode == 3 or mode == 1: mode_name = 'training_'
     else: mode_name = 'other_'
-    if transfer_learning: model_name = "AdvLSTM_"
+    if transfer_learning: model_name = "Semi-Transformer_"
     else: model_name = model_name + "_"
     win_name = f"{out_win_size}_"
-    fw_name = f"{fs_pair[0]}_"
-    sc_name = f"{fs_pair[1]}"
+    if not general_mode:
+        fw_name = f"{fs_pair[0]}_"
+        sc_name = f"{fs_pair[1]}"
+    else:
+        fw_name = "general"
+        sc_name = ""
     full_name = mode_name+model_name+win_name + fw_name + sc_name + '.h5'
     return full_name
 
@@ -100,14 +109,22 @@ if __name__ == '__main__':
     '''
     # store_flex_staff_table()
     mode, general_training_mode, transfer_learning, load_model, flexworkerid, staffingcustomerid = get_execution_mode(sys.argv)
-    connection = False               # Enable if there is a connection to the Akyla database
+    connection = True               # Enable if there is a connection to the Akyla database
     in_win_size = 14                # Control how many days are used for forecasting the working hours
     out_win_size = 1
 
-    n_layers = 5
+    n_layers = 6 # 2-ok | 4, 6-ok
+
+    head_size = 512
+    num_heads = 8
+    ff_dim = 4
+
     gru_size = 550
-    lstm_size = 550
-    epochs = 350
+    lstm_size = 512
+
+
+    epochs = 150 #150 - 8.5mse
+    train_limit = 1200
 
     if general_training_mode:
         df_fs = flex_staff_pairs_from_csv()
@@ -117,7 +134,7 @@ if __name__ == '__main__':
             staffingcustomerid.append(row[1])
     start = datetime.now()
     df = read_file(mode, [flexworkerid, staffingcustomerid], general_prediction_mode=general_training_mode,
-                   connection=connection, store_locally=False)
+                   connection=connection, store_locally=True)
     time_postgres = datetime.now() - start
     print(f"Loaded from postgres in: {(time_postgres)/60}mins")
     if mode == 3 or mode == 1: FEATURES = ['dayofweek', 'weekofyear', 'flexworkerids',
@@ -156,7 +173,11 @@ if __name__ == '__main__':
     if general_training_mode:
 
         df_list, x_test, y_test, x_val, y_val = data_split(df_list, in_win_size, out_win_size, mode)
-        model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=n_layers, lstm_size=lstm_size) # 16 128
+        # model = AdvLSTMNeuralNetwork(input_shape, output_shape, n_layers=n_layers, lstm_size=lstm_size) # 16 128
+        model = SemiTransformer(input_shape, output_shape, n_layers, head_size, num_heads, ff_dim)
+        full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], transfer_learning=transfer_learning, out_win_size=out_win_size) # Get the full name for the results
+        path = f'saved model weights/{full_name}'
+        model.set_path(path)
         model.compile()
         model.check()
     '''
@@ -176,11 +197,13 @@ if __name__ == '__main__':
         for better predictions for the personalised model with few inputs. 
         '''
         model = TransferNeuralNetwork(input_shape, output_shape, path, n_layers=n_layers, lstm_size=lstm_size)
+        model.set_path(path)
         model.compile()
         model.build()
         model.check()
     elif load_model:
-        model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size)
+        # model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size)
+        model = SemiTransformer(input_shape, output_shape, n_layers, head_size, num_heads, ff_dim)
         full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], transfer_learning=transfer_learning, out_win_size=out_win_size) # Get the full name for the results
         path = f'saved model weights/{full_name}'
         model.get_model().load_weights(path)
@@ -192,13 +215,18 @@ if __name__ == '__main__':
 
     for cnt, df_np in enumerate(df_list):
         if df_np.shape[0] < 63 or np.mean(np.transpose(df_np)[-1]) < 1.75: continue # If the input if too small, it is not possible to train on it. 63 with 14-7 / 45 with 7-7 / 84 with 21-7
+        if cnt > train_limit: break
         '''
         In the case that the prediction mode is set to be on the individual, there needs to be a model specialised to 
         each flexworker, without impacting bias from other cases. Individual models should be trained and
         SAVED separately.
         '''
         if (not general_training_mode) and (not transfer_learning) and not mode == 1:
-            model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size) #16-128 okay, 4-450 better, 4-850
+            # model = AdvGRUNeuralNetwork(input_shape, output_shape, n_layers=n_layers, gru_size=gru_size) #16-128 okay, 4-450 better, 4-850
+            model = SemiTransformer(input_shape, output_shape)
+            full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], transfer_learning=transfer_learning, out_win_size=out_win_size) # Get the full name for the results
+            path = f'saved model weights/{full_name}'
+            model.set_path(path)
             model.compile()
             model.check()
 
@@ -216,7 +244,8 @@ if __name__ == '__main__':
         elif mode == 1 or mode==3: x_train, y_train = multi_partition_dataset(df_np, in_win_size, out_win_size)
 
         # scaler is useful to see the original data again after
-        x_train, y_train, x_val, y_val, x_test, y_test, scalers = data_scaler([x_train, y_train, x_val, y_val, x_test, y_test])
+        scalers = []
+        # x_train, y_train, x_val, y_val, x_test, y_test, scalers = data_scaler([x_train, y_train, x_val, y_val, x_test, y_test])
 
         '''
         There are cases where the model fit receives empty inputs, therefore cannot properly proceed and should thus be
@@ -229,11 +258,19 @@ if __name__ == '__main__':
         if mode == 1: break
         try:
             history = model.fit(x_train, y_train.T[-1].T, x_val, y_val.T[-1].T, epochs)
+            train_time = (datetime.now()-start).total_seconds()
+            print(f"The train time was: {train_time/60}mins")
+            if mode == 3 and not load_model: model.save(model.path)
         except Exception as e:
             print(f"Exception thrown when trying to fit: {e}")
             continue
 
+        if len(df_list) > 0 and cnt % int(len(df_list)/2) == 0: model.set_learning_rate(model.lr/10)
+
+
+
     train_time = (datetime.now()-start).total_seconds()
+    print(f"The train time was: {train_time/60}mins")
 
     if not load_model: # The weights are mostly stored when the training of the general, or personal models is complete
         full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], out_win_size=out_win_size)  # Get the full name for the results

@@ -82,7 +82,7 @@ def store_flex_staff_table():
     exit()
 
 
-def read_file(mode, args=[], general_prediction_mode=False, test=False, connection=True, store_locally=True):
+def read_file(mode, args=[], general_prediction_mode=False, test=False, connection=True, store_locally=False):
     # Set some options for displaying the data through pandas
 
     pd.set_option('display.max_rows', 500)

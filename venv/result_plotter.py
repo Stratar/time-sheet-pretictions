@@ -97,8 +97,8 @@ def plotter(df):
     plt.style.use('seaborn')
     plt.rcParams['axes.grid'] = True
     figure, axis = plt.subplots(5, sharex=True, sharey=True)
-    axis[0].plot(df.iloc[:, -10], train_predictions, label="Predictions")
-    axis[0].plot(df.iloc[:, -10], train_actuals, label="Actuals")
+    axis[0].plot(np.arange(len(train_predictions)), train_predictions, label="Predictions")
+    axis[0].plot(np.arange(len(train_actuals)), train_actuals, label="Actuals")
     axis[0].title.set_text('Train Run')
     axis[1].plot(np.arange(len(val_predictions)), val_predictions, label="Predictions")
     axis[1].plot(np.arange(len(val_actuals)), val_actuals, label="Actuals")
@@ -130,7 +130,8 @@ if __name__ == '__main__':
         iteration = int(sys.argv[1])
     # df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvGRU_timecardline_amount/{iteration}{version}.xlsx")
     # df = pd.read_excel(f"../../data/results/RNN/multivariate_general_AdvGRU_timecardline_amount/{iteration}{version}.xlsx")
-    df = pd.read_excel(f"../../data/results/RNN/training_AdvGRU_1_timecardline_amount/{iteration}{version}.xlsx")
+    # df = pd.read_excel(f"../../data/results/RNN/training_AdvGRU_1_timecardline_amount/{iteration}{version}.xlsx")
+    df = pd.read_excel(f"../../data/results/RNN/training_Semi-Transformer_1_general/{iteration}{version}.xlsx")
     # df = pd.read_excel(f"../../data/results/RNN/multivariate_AdvLSTM_timecardline_amount/{iteration}{version}.xlsx")
 
     print(df.head())
@@ -151,8 +152,8 @@ if __name__ == '__main__':
           f"|*time: {round(time/60, 2)} mins\t|*learning rate: {lr}\t|\n"
           f"---------------------------------------------------------------------------------------------------\n")
 
-    # plotter(df)
+    plotter(df)
     # bar_plotter(df)
-    table_display(df)
+    # table_display(df)
     # sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_companyname",
     #              style="assignment_flexworkerid", markers=True)
