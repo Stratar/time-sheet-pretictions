@@ -45,14 +45,16 @@ cmd_get_staffingcustomer_list = "Select view_staffingcustomerid from (select * f
 cmd_get_flex_staff_db = "Select assignment_flexworkerid, staffingcustomer_staffingcustomerid from timecardinfo_new " \
                         "group by " \
                         "assignment_flexworkerid, staffingcustomer_staffingcustomerid " \
+                        "having count(*) > 64 " \
                         "order by " \
-                        "count(*) desc"
+                        "count(*) desc" \
+                        "limit 1000;"
 
 # cmd_get_full_db = "select * from timecardinfo_new;"
 cmd_get_full_db = "select * from timecardinfo_new where ((assignment_flexworkerid, staffingcustomer_staffingcustomerid) " \
                   "in (select assignment_flexworkerid, staffingcustomer_staffingcustomerid from timecardinfo_new " \
                   "group by assignment_flexworkerid, staffingcustomer_staffingcustomerid having count(*) > 64 " \
-                  "order by count(*) asc limit 11000));"
+                  "order by count(*) desc limit 11000));"
 
 def connect_to_postgresql_database():
     return psycopg2.connect(dbname='euur_timecards', user='development', password='development',
