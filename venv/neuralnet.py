@@ -60,11 +60,11 @@ class SemiTransformer:
             self,
             input_shape,
             out_shape,
-            num_transformer_blocks=12, # 5
-            head_size=256, # 256
-            num_heads=4, # 10
-            ff_dim=14, # 14
-            mlp_units=[128], #list of units per mlp layer
+            num_transformer_blocks=12, # 5, 4
+            head_size=256, # 256, 512
+            num_heads=4, # 10, 4
+            ff_dim=14, # 14, 4
+            mlp_units=[128], #list of units per mlp layer | could be reduced to allow result jumps and spikes
             lr = 1e-4 # 1e-3
     ):
         mlp_dropout = 0.2

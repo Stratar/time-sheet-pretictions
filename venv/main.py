@@ -12,10 +12,6 @@ import warnings
 warnings.filterwarnings("ignore")
 '''
 TODO:
-* Remove the loads of nan values from the prediction table export.
-
-* General training is slow when loading the fw and sc data. 
-
 * Experiment for better predictions:
     - Batch sizes
     - Layers (Too many layers may be counter-productive): 3 - are okay More usually lead to zero results
@@ -125,13 +121,14 @@ if __name__ == '__main__':
 
     epochs = 150 #150 - 8.5mse
     train_limit = 1200
-
+    '''Get a list of fwids and scids when training on the whole dataset.'''
     if general_training_mode:
         df_fs = flex_staff_pairs_from_csv()
         flexworkerid, staffingcustomerid = [], []
         for _, row in df_fs.iterrows():
             flexworkerid.append(row[0])
             staffingcustomerid.append(row[1])
+
     start = datetime.now()
     df = read_file(mode, [flexworkerid, staffingcustomerid], general_prediction_mode=general_training_mode,
                    connection=connection, store_locally=True)
@@ -275,13 +272,10 @@ if __name__ == '__main__':
     if not load_model: # The weights are mostly stored when the training of the general, or personal models is complete
         full_name = get_savefile_name(mode, model.name, [flexworkerid, staffingcustomerid], out_win_size=out_win_size)  # Get the full name for the results
         path = f'saved model weights/{full_name}'
-        # from the start of the loop to finish
         model.save(path)
 
     if not (mode == 1): plot_history(history) # Not needed for the final version
-    # if mode == 1:
-    #     x_train, y_train = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
-    #     x_val, y_val = np.zeros((7056,14,6)), np.zeros((84,14,6)) # Temporary solution
+
     hp = [train_time, model.n_layers, input_shape, output_shape, model.layer_size, model.hid_size, model.lr, model.epochs,
           flexworkerid, staffingcustomerid]
 
