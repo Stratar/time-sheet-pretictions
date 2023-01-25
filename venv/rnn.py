@@ -55,7 +55,7 @@ def plot_predictions(model, X, y, scalers=[], start=0, end=150, show_plots=True)
 
     df = res_dataframe(predictions, y)
     if show_plots:
-        plt.plot(df['Predictions'][start:end])
+        plt.plot(df['Predictions'][start:end].apply(lambda x: x * 2).round().apply(lambda x: x / 2))
         plt.plot(df['Actuals'][start:end])
         plt.title('Predictions vs Actuals')
         plt.ylabel('value')

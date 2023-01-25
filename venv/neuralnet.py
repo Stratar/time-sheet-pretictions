@@ -26,6 +26,11 @@ def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
 
 
 class PositionEmbeddingLayer(tf.keras.layers.Layer):
+    '''
+    This hinders performance as it is. The transfer from word embeddings to numeric values does not perform the way it
+    is expected to. The position embedding should work well. There are no words to embed so the numeric values have to
+    reflect a similar goal.
+    '''
     def __init__(self, sequence_length, vocab_size, output_dim, **kwargs):
         super(PositionEmbeddingLayer, self).__init__(**kwargs)
         self.sequence_length = sequence_length
@@ -64,8 +69,8 @@ class SemiTransformer:
             head_size=256, # 256, 512
             num_heads=4, # 10, 4
             ff_dim=14, # 14, 4
-            mlp_units=[128], #list of units per mlp layer | could be reduced to allow result jumps and spikes
-            lr = 1e-4 # 1e-3
+            mlp_units=[32, 16], #list of units per mlp layer | could be reduced to allow result jumps and spikes
+            lr = 5e-3 # 1e-3
     ):
         mlp_dropout = 0.2
         dropout=0.2
@@ -92,7 +97,7 @@ class SemiTransformer:
         self.name = self.model._name
         self.optimizer = tf.keras.optimizers.Adam(lr=lr)
 
-        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=125)
+        self.early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=225)
         self.cp = tf.keras.callbacks.ModelCheckpoint('model_semitrans.h5', save_best_only=True)
 
     def compile(self):

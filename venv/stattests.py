@@ -69,8 +69,8 @@ def make_boxplot(df):
 
 
 def make_lineplot(df):
-    sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="quarter",
-                 style="assignment_flexworkerid", markers=True)
+    sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="staffingcustomer_staffingcustomerid",
+                 style="assignment_flexworkerid", palette="bright", markers=True)
     plt.show()
     # try:
     #     sns.lineplot(data=df, x=df.index, y="timecardline_amount", hue="assignment_startdate",

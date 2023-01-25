@@ -38,6 +38,8 @@ TODO:
         Unrealistic: 65, 73, 87, 112, 118, 125, 134, 136, 143, 151, 154, 155, 162, 165, 169, 171, 179, 181, 189, 193, 196,
         198,
         
+        15, 723, 910, 1000, 1146, 1147
+        
         What do the predictions mean?
         Represent it appropriately in the presentation as table
         Measure average deviation
@@ -88,10 +90,10 @@ def get_execution_mode(args):
         if int(args[-1]) < 100000:
             index = int(args[-1])
             df_fs = flex_staff_pairs_from_csv()
-            return mode, general_training_mode, transfer_learning, load_model, int(df_fs.iloc[index, 0]), \
-                   int(df_fs.iloc[index, 1])
+            return mode, general_training_mode, transfer_learning, load_model, [int(df_fs.iloc[index, 0])], \
+                   [int(df_fs.iloc[index, 1])]
 
-        fwid, scid = int(args[-2]), int(args[-1])
+        fwid, scid = [int(args[-2])], [int(args[-1])]
         return mode, general_training_mode, transfer_learning, load_model, fwid, scid
 
     else: raise Exception("Invalid input. Please specify the function: Train, Predict or Statistics")
@@ -109,11 +111,11 @@ if __name__ == '__main__':
     in_win_size = 7                # Control how many days are used for forecasting the working hours
     out_win_size = 1
 
-    n_layers = 4 # 6 - 59.5, 2 -
+    n_layers = 2 # 6 - 59.5, 2 -
 
-    head_size = 1280 #512 - 57.87, 128 - 59.5
-    num_heads = 2 #8 - 57.9, 2 - 57.87
-    ff_dim = 2 #4 - 61.5, < 12, 2 - 57.9
+    head_size = 750 #512 - 57.87, 128 - 59.5
+    num_heads = 4 #8 - 57.9, 2 - 57.87
+    ff_dim = 7 #4 - 61.5, < 12, 2 - 57.9
 
     gru_size = 550
     lstm_size = 512
@@ -125,7 +127,8 @@ if __name__ == '__main__':
     if general_training_mode:
         df_fs = flex_staff_pairs_from_csv()
         flexworkerid, staffingcustomerid = [], []
-        for _, row in df_fs.iterrows():
+        for i, row in df_fs.iterrows():
+            if i > train_limit: break
             flexworkerid.append(row[0])
             staffingcustomerid.append(row[1])
 
